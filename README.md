@@ -237,25 +237,37 @@ update.
 
 ### Scheduling
 
-`vercel.json` runs `/api/cron/daily-digest` hourly. The endpoint checks the
-local clock itself and only sends once your configured hour has arrived; the
-`(day, channel)` unique index makes the remaining hourly calls no-ops. That
-combination means the send hour is changed in Settings rather than by editing a
-cron expression, and a missed run self-heals on the next hour instead of
-silently skipping the day.
+`vercel.json` runs the digest once a day:
 
-If your plan only allows one cron a day, set the schedule to match your send
-hour in UTC (21:00 in Addis Ababa is `0 18 * * *`). Any external scheduler
-works — [cron-job.org](https://cron-job.org) is free:
+```json
+{ "path": "/api/cron/daily-digest?daily=1", "schedule": "0 18 * * *" }
+```
+
+**18:00 UTC is 21:00 in Addis Ababa.** Vercel's Hobby plan allows only one cron
+run per day, so the cron time *is* the send time and `?daily=1` tells the
+endpoint to stop second-guessing it. To move the send, change the hour in that
+expression (remember it is UTC: subtract 3 for Addis).
+
+The `(day, channel)` unique index still applies, so an extra call - a retry, a
+manual trigger - is a no-op rather than a second message.
+
+**If your scheduler can run more often**, drop the `?daily=1` and use an hourly
+schedule (`0 * * * *`) or an external runner. Then the endpoint checks the local
+clock itself and the send hour lives in Settings instead of a cron expression,
+which also means a missed run self-heals on the next hour.
+[cron-job.org](https://cron-job.org) is free and allows any interval:
 
 ```
 https://your-app.vercel.app/api/cron/daily-digest?key=<CRON_SECRET>
 ```
 
-Without `CRON_SECRET` the endpoint refuses everything rather than defaulting to
-open. An admin's browser session is deliberately not sufficient either.
-`?force=1` skips the hour check, `?resend=1` skips the once-a-day guard,
-`?date=YYYY-MM-DD` backfills a day.
+The endpoint requires `CRON_SECRET` (Bearer header or `?key=`). Without that
+variable set it refuses everything rather than defaulting to open. An admin's
+browser session is deliberately not sufficient either.
+
+Query parameters: `?daily=1` lets the scheduler own the timing, `?force=1`
+skips the hour check for a manual run, `?resend=1` skips the once-a-day guard,
+`?date=YYYY-MM-DD` backfills a specific day.
 
 ## Money: how profit is worked out
 

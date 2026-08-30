@@ -127,7 +127,10 @@ export function DigestSettingsCard({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Send at" hint={`Local time in ${timezone.replace(/_/g, " ")}`}>
+          <Field
+            label="Send at"
+            hint={`Local time in ${timezone.replace(/_/g, " ")}. On a plan that allows only one cron a day (Vercel Hobby), the time in vercel.json decides instead.`}
+          >
             <Select name="hourLocal" defaultValue={String(digest.hourLocal)}>
               {Array.from({ length: 24 }, (_, h) => (
                 <option key={h} value={h}>

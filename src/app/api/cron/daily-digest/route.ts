@@ -55,15 +55,26 @@ async function handle(request: Request) {
   const { business, digest } = await getSettings();
 
   /**
-   * Schedulers work in UTC and free plans often only allow a coarse schedule,
-   * so the endpoint is happy to be called more often than needed and decides
-   * for itself whether it is late enough locally. `force=1` skips the check
-   * for manual runs, and an explicit `?date=` backfills a specific day.
+   * Two ways to schedule this, and the caller says which:
+   *
+   *   ?daily=1   the scheduler runs once a day and its time IS the send time.
+   *              Vercel's Hobby plan only allows one cron run per day, so this
+   *              is what vercel.json uses. The hour in Settings is ignored;
+   *              the (day, channel) unique index still prevents duplicates.
+   *
+   *   no flag    the scheduler polls often (hourly or better) and the endpoint
+   *              decides for itself whether the configured local hour has
+   *              arrived. This is the nicer setup because the send time is
+   *              changed in Settings rather than in a cron expression.
+   *
+   * `force=1` also skips the hour check, for manual runs, and `?date=`
+   * backfills a specific day.
    */
+  const daily = url.searchParams.get("daily") === "1";
   const force = url.searchParams.get("force") === "1";
   const explicitDate = url.searchParams.get("date") ?? undefined;
 
-  if (!force && !explicitDate) {
+  if (!daily && !force && !explicitDate) {
     const localHour = hourOf(new Date(), business.timezone);
     if (localHour < digest.hourLocal) {
       return NextResponse.json(
