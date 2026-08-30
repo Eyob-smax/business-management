@@ -13,7 +13,8 @@
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "reset-admin": "tsx --env-file=.env.local scripts/reset-admin.ts",
     "smoke": "tsx --env-file=.env.local scripts/smoke-test.ts",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "telegram": "tsx --env-file=.env.local scripts/telegram.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

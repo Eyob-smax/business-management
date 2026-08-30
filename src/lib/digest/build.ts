@@ -18,10 +18,10 @@ import { getSettings } from "@/lib/settings";
  * channels have genuinely different limits:
  *
  *   push      one line, a phone notification body
- *   sms       every character is money, and Amharic would halve the segment
- *             size, so this one is deliberately terse and ASCII
- *   telegram  HTML, room to breathe, this is the good one
+ *   telegram  HTML, room to breathe - the main channel
  *   email     the same content with a little structure
+ *   plain     an unformatted fallback, used as the email text part and by
+ *             anything that cannot render markup
  *
  * Rendering from one payload is what keeps them from drifting apart and
  * quietly disagreeing about the day's profit.
@@ -51,7 +51,13 @@ export type DigestPayload = {
   /** Unresolved problems staff flagged, so they are not missed overnight. */
   openIssues: { body: string; authorName: string }[];
 
-  text: { push: { title: string; body: string }; sms: string; telegramHtml: string; emailHtml: string; emailSubject: string };
+  text: {
+    push: { title: string; body: string };
+    plain: string;
+    telegramHtml: string;
+    emailHtml: string;
+    emailSubject: string;
+  };
 };
 
 /** Telegram + email are HTML; user-supplied text must not break the markup. */
@@ -152,21 +158,21 @@ function render(d: Omit<DigestPayload, "text">): DigestPayload["text"] {
             : "Nothing was sold today.",
       };
 
-  /* ---- sms: terse, ASCII, ideally two segments ---- */
-  const smsLines = [
+  /* ---- plain text fallback ---- */
+  const plainLines = [
     `${d.businessName} ${d.businessDate}`,
     `Sales ${formatMoney(d.revenueCents, { symbol: false })} (${d.orders} orders)`,
     `Cost ${formatMoney(d.totalCostCents, { symbol: false })}`,
     `${profitWord} ${formatMoney(Math.abs(d.profitCents), { symbol: false })} ${d.marginPct.toFixed(0)}%`,
   ];
   if (d.topDishes.length) {
-    smsLines.push(`Best: ${d.topDishes.map((t) => `${t.name} x${t.qty}`).join(", ")}`);
+    plainLines.push(`Best: ${d.topDishes.map((t) => `${t.name} x${t.qty}`).join(", ")}`);
   }
   if (d.openIssues.length) {
-    smsLines.push(`${d.openIssues.length} open problem(s)`);
+    plainLines.push(`${d.openIssues.length} open problem(s)`);
   }
-  const sms = d.hasSales
-    ? smsLines.join("\n")
+  const plain = d.hasSales
+    ? plainLines.join("\n")
     : `${d.businessName} ${d.businessDate}: no sales recorded today.`;
 
   /* ---- telegram: HTML ---- */
@@ -261,7 +267,7 @@ function render(d: Omit<DigestPayload, "text">): DigestPayload["text"] {
 
   return {
     push,
-    sms,
+    plain,
     telegramHtml: tg.join("\n"),
     emailHtml,
     emailSubject: d.hasSales

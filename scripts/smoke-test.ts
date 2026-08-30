@@ -8,6 +8,7 @@
  * It cleans up after itself: every row it creates is prefixed `e2e-` and
  * deleted at the end.
  */
+import { readdirSync, readFileSync } from "node:fs";
 import { neon } from "@neondatabase/serverless";
 import { SignJWT } from "jose";
 
@@ -429,6 +430,45 @@ async function main() {
   check("a day+channel can be claimed once", firstClaim.length === 1);
   check("...and never twice", secondClaim.length === 0);
   await sql`DELETE FROM digest_runs WHERE business_date = ${probeDay}::date`;
+
+  /* ---- telegram bot ---- */
+  console.log("\nTelegram bot:");
+
+  const hookNoSecret = await postJSON("/api/telegram/webhook", { update_id: 1 });
+  check("webhook refuses an update with no secret header", hookNoSecret.status === 401,
+    `got ${hookNoSecret.status}`);
+
+  const hookBadSecret = await fetch(BASE + "/api/telegram/webhook", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-telegram-bot-api-secret-token": "wrong-secret",
+    },
+    body: JSON.stringify({ update_id: 1 }),
+  });
+  check("webhook refuses a wrong secret", hookBadSecret.status === 401,
+    `got ${hookBadSecret.status}`);
+
+  /**
+   * The bot must never be able to change anything. Scanning the source is a
+   * blunt check, but it is the one that keeps being true as the file grows -
+   * a stray db.insert here would otherwise ship silently.
+   */
+  const botDir = "src/lib/telegram";
+  const botFiles = readdirSync(botDir).filter((f) => f.endsWith(".ts"));
+  const writeCalls: string[] = [];
+  for (const file of botFiles) {
+    const source = readFileSync(`${botDir}/${file}`, "utf8");
+    for (const pattern of [/db\s*\.\s*insert\s*\(/, /db\s*\.\s*update\s*\(/, /db\s*\.\s*delete\s*\(/]) {
+      if (pattern.test(source)) writeCalls.push(`${file}: ${pattern.source}`);
+    }
+    // Raw SQL writes would slip past the drizzle patterns above.
+    if (/\b(INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM)\b/i.test(source)) {
+      writeCalls.push(`${file}: raw SQL write`);
+    }
+  }
+  check("the bot contains no write operations", writeCalls.length === 0, writeCalls.join(", "));
+  check("the bot module was actually scanned", botFiles.length >= 3, `${botFiles.length} files`);
 
   const manifest = await get("/manifest.webmanifest");
   const manifestJson = JSON.parse(manifest.body) as { icons: unknown[]; display: string };

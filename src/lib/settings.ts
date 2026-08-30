@@ -67,10 +67,8 @@ const DEFAULTS = {
     hourLocal: 21,
     // Push costs nothing and needs no provider, so it is the only one on by
     // default; the rest switch themselves on once their env vars exist.
-    channels: { push: true, telegram: false, email: false, sms: false },
-    telegramChatIds: [],
+    channels: { push: true, telegram: true, email: false },
     emails: [],
-    phones: [],
     topDishes: 3,
     skipEmptyDays: true,
   } satisfies DigestSettings,
@@ -91,13 +89,13 @@ export type DigestSettings = {
     push: boolean;
     telegram: boolean;
     email: boolean;
-    sms: boolean;
   };
-  /** Telegram chat ids - a person or a group the bot has been added to. */
-  telegramChatIds: string[];
+  /**
+   * Telegram recipients are NOT here - they live in TELEGRAM_OWNER_CHAT_ID and
+   * TELEGRAM_DIGEST_CHAT_IDS, because chat identity is deployment
+   * configuration rather than something to edit from a settings screen.
+   */
   emails: string[];
-  /** E.164, e.g. +251911234567. */
-  phones: string[];
   /** How many dishes to name in the summary. */
   topDishes: number;
   /** Skip sending on days with no sales at all. */

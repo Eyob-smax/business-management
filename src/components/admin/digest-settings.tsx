@@ -2,24 +2,52 @@
 /**
  * Nightly summary settings.
  *
- * Each channel says plainly what it costs, because "free SMS" is the thing
- * people assume exists and it does not for Ethiopian numbers. A channel whose
- * server credentials are missing is shown as unavailable with the exact
- * variable name to set, rather than letting an admin switch on something that
- * would quietly fail at 9pm.
+ * Telegram recipients are NOT editable here on purpose - they live in the
+ * environment (see lib/telegram/access.ts), because the chat allowlist is also
+ * the bot's entire security boundary and should not be changeable from a
+ * screen. This card shows how many are configured so an admin can tell the
+ * difference between "nobody set it up" and "it is working".
  */
 import * as React from "react";
 import { useActionState } from "react";
-import { CircleCheck, Info, Mail, MessageCircle, Save, Send, Smartphone, TriangleAlert } from "lucide-react";
+import {
+  Bot,
+  CircleCheck,
+  Info,
+  Mail,
+  MessageCircle,
+  Save,
+  Send,
+  Smartphone,
+  TriangleAlert,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/dates";
 import type { DigestSettings } from "@/lib/settings";
 import { saveDigestSettings, sendDigestNow } from "@/app/actions/settings";
 import type { ActionResult } from "@/app/actions/_result";
-import { Badge, Button, Card, CardHeader, Field, Input, Select, Textarea, Toggle } from "@/components/ui/primitives";
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Field,
+  Input,
+  Select,
+  Textarea,
+  Toggle,
+} from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 
-export type ChannelReadiness = { telegram: boolean; email: boolean; sms: boolean };
+export type ChannelReadiness = { telegram: boolean; email: boolean };
+
+export type TelegramStatus = {
+  token: boolean;
+  webhookSecret: boolean;
+  owner: boolean;
+  allowedCount: number;
+  digestCount: number;
+};
 
 export type DigestRun = {
   id: string;
@@ -34,11 +62,13 @@ export type DigestRun = {
 export function DigestSettingsCard({
   digest,
   readiness,
+  telegram,
   runs,
   timezone,
 }: {
   digest: DigestSettings;
   readiness: ChannelReadiness;
+  telegram: TelegramStatus;
   runs: DigestRun[];
   timezone: string;
 }) {
@@ -58,7 +88,7 @@ export function DigestSettingsCard({
     toast(
       state.ok
         ? { tone: "success", title: state.message ?? "Saved" }
-        : { tone: "error", title: state.error ?? "Could not save", duration: 7000 },
+        : { tone: "error", title: state.error ?? "Could not save", duration: 8000 },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -80,7 +110,6 @@ export function DigestSettingsCard({
         <input type="hidden" name="chPush" value={channels.push ? "on" : ""} />
         <input type="hidden" name="chTelegram" value={channels.telegram ? "on" : ""} />
         <input type="hidden" name="chEmail" value={channels.email ? "on" : ""} />
-        <input type="hidden" name="chSms" value={channels.sms ? "on" : ""} />
 
         <div className="rounded-[14px] border border-line px-3 py-1">
           <Toggle
@@ -118,7 +147,6 @@ export function DigestSettingsCard({
           </Field>
         </div>
 
-        {/* ---- channels ---- */}
         <div className="space-y-2.5">
           <p className="text-[12px] font-bold tracking-[0.05em] text-ink-3 uppercase">
             Where to send it
@@ -128,8 +156,7 @@ export function DigestSettingsCard({
             icon={<Smartphone className="size-4" />}
             title="Phone notification"
             cost="Free"
-            costTone="profit"
-            note="Goes to every admin who turned notifications on. Costs nothing and needs no setup."
+            note="Goes to every admin who turned notifications on. No setup needed."
             available
             checked={channels.push}
             onChange={(v) => setChannel("push", v)}
@@ -139,29 +166,26 @@ export function DigestSettingsCard({
             icon={<MessageCircle className="size-4" />}
             title="Telegram"
             cost="Free, unlimited"
-            costTone="profit"
-            note="The best option here: no card, no monthly cap, and it works well on Ethiopian networks. Create a bot with @BotFather, put the token in TELEGRAM_BOT_TOKEN, then each person messages the bot once so you can get their chat ID."
+            note={
+              telegram.digestCount > 0
+                ? `Going to ${telegram.digestCount} chat${telegram.digestCount === 1 ? "" : "s"}. The same bot also answers questions on demand.`
+                : "The main channel. Recipients are set in the environment, not here."
+            }
             available={readiness.telegram}
-            missing="TELEGRAM_BOT_TOKEN"
+            missing={
+              !telegram.token
+                ? "TELEGRAM_BOT_TOKEN"
+                : "TELEGRAM_OWNER_CHAT_ID (or TELEGRAM_DIGEST_CHAT_IDS)"
+            }
             checked={channels.telegram}
             onChange={(v) => setChannel("telegram", v)}
-          >
-            <Field label="Chat IDs" hint="One per line. A negative number is a group.">
-              <Textarea
-                name="telegramChatIds"
-                rows={2}
-                defaultValue={digest.telegramChatIds.join("\n")}
-                placeholder="123456789"
-              />
-            </Field>
-          </ChannelBlock>
+          />
 
           <ChannelBlock
             icon={<Mail className="size-4" />}
             title="Email"
             cost="Free up to 3,000/month"
-            costTone="profit"
-            note="Uses Resend. Good if you want a written record you can search later."
+            note="Optional, via Resend. Useful if you want a written record you can search later."
             available={readiness.email}
             missing="RESEND_API_KEY and DIGEST_EMAIL_FROM"
             checked={channels.email}
@@ -173,27 +197,6 @@ export function DigestSettingsCard({
                 rows={2}
                 defaultValue={digest.emails.join("\n")}
                 placeholder="owner@example.com"
-              />
-            </Field>
-          </ChannelBlock>
-
-          <ChannelBlock
-            icon={<Send className="size-4" />}
-            title="SMS"
-            cost="Not free"
-            costTone="warn"
-            note="There is no free tier for SMS to Ethiopian numbers from any provider. Twilio's signup credit covers roughly 250 messages, then it is about 6 US cents each. Telegram above does the same job for nothing."
-            available={readiness.sms}
-            missing="TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER"
-            checked={channels.sms}
-            onChange={(v) => setChannel("sms", v)}
-          >
-            <Field label="Phone numbers" hint="With country code, one per line.">
-              <Textarea
-                name="phones"
-                rows={2}
-                defaultValue={digest.phones.join("\n")}
-                placeholder="+251911234567"
               />
             </Field>
           </ChannelBlock>
@@ -233,11 +236,47 @@ export function DigestSettingsCard({
 
         <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-ink-3">
           <Info className="mt-px size-3.5 shrink-0" />
-          &ldquo;Send now&rdquo; ignores the once-a-night rule so you can test it. The real 9pm
-          send happens even if nobody has the app open, and can only go out once per day per
-          channel.
+          &ldquo;Send now&rdquo; ignores the once-a-night rule so you can test it. The real send
+          happens even with nobody in the app, and can only go out once per day per channel.
         </p>
       </form>
+
+      {/* ---- the bot ---- */}
+      <div className="mt-4 border-t border-line px-4 pt-4">
+        <p className="flex items-center gap-2 text-[13px] font-bold text-ink">
+          <Bot className="size-4 text-ink-3" />
+          Telegram bot
+        </p>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
+          The same bot answers questions any time: today&rsquo;s takings, the week, best dishes,
+          costs, notes, what is sold out. It can only <strong>read</strong> — recording sales,
+          prices, expenses and access all stay in this app.
+        </p>
+
+        <ul className="mt-3 space-y-1.5 text-[12px]">
+          <StatusRow ok={telegram.token} label="Bot token" missing="TELEGRAM_BOT_TOKEN" />
+          <StatusRow
+            ok={telegram.webhookSecret}
+            label="Webhook secret"
+            missing="TELEGRAM_WEBHOOK_SECRET"
+          />
+          <StatusRow ok={telegram.owner} label="Owner chat" missing="TELEGRAM_OWNER_CHAT_ID" />
+          <StatusRow
+            ok={telegram.allowedCount > 0}
+            label={`${telegram.allowedCount} chat${telegram.allowedCount === 1 ? "" : "s"} allowed to use the bot`}
+            missing="TELEGRAM_ALLOWED_CHAT_IDS"
+          />
+        </ul>
+
+        <p className="mt-2.5 text-[11.5px] leading-relaxed text-ink-3">
+          Set up with{" "}
+          <code className="rounded bg-surface-2 px-1 py-0.5">npm run telegram ids</code> then{" "}
+          <code className="rounded bg-surface-2 px-1 py-0.5">
+            npm run telegram setup https://your-app
+          </code>
+          .
+        </p>
+      </div>
 
       {runs.length > 0 ? (
         <div className="mt-4 border-t border-line px-4 pt-3">
@@ -267,11 +306,26 @@ export function DigestSettingsCard({
   );
 }
 
+function StatusRow({ ok, label, missing }: { ok: boolean; label: string; missing: string }) {
+  return (
+    <li className="flex items-start gap-2">
+      {ok ? (
+        <CircleCheck className="mt-px size-3.5 shrink-0 text-profit" />
+      ) : (
+        <TriangleAlert className="mt-px size-3.5 shrink-0 text-warn" />
+      )}
+      <span className={ok ? "text-ink-2" : "text-warn"}>
+        {label}
+        {!ok ? <> — set <code className="font-mono">{missing}</code></> : null}
+      </span>
+    </li>
+  );
+}
+
 function ChannelBlock({
   icon,
   title,
   cost,
-  costTone,
   note,
   available,
   missing,
@@ -282,7 +336,6 @@ function ChannelBlock({
   icon: React.ReactNode;
   title: string;
   cost: string;
-  costTone: "profit" | "warn";
   note: string;
   available: boolean;
   missing?: string;
@@ -303,7 +356,7 @@ function ChannelBlock({
           <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-bold text-ink">
             <span className="text-ink-3">{icon}</span>
             {title}
-            <Badge tone={costTone}>{cost}</Badge>
+            <Badge tone="profit">{cost}</Badge>
           </p>
           <p className="mt-1.5 text-[12px] leading-relaxed text-ink-2">{note}</p>
           {!available && missing ? (

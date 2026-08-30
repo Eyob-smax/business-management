@@ -13,6 +13,7 @@ import { requireAdmin } from "@/lib/auth";
 import { saveSettingsGroup } from "@/lib/settings";
 import { parseMoneyToCents } from "@/lib/money";
 import { sendDailyDigest } from "@/lib/digest/send";
+import { digestChatIds } from "@/lib/telegram/access";
 import { fail, ok, toActionError, type ActionResult } from "./_result";
 
 const businessSchema = z.object({
@@ -133,13 +134,8 @@ const digestSchema = z.object({
     push: z.boolean(),
     telegram: z.boolean(),
     email: z.boolean(),
-    sms: z.boolean(),
   }),
-  telegramChatIds: z.array(z.string().regex(/^-?\d+$/, "Chat IDs are numbers.")),
   emails: z.array(z.string().email("That is not a valid email address.")),
-  phones: z.array(
-    z.string().regex(/^\+\d{7,15}$/, "Phone numbers need the country code, e.g. +251911234567."),
-  ),
 });
 
 export async function saveDigestSettings(
@@ -158,11 +154,8 @@ export async function saveDigestSettings(
         push: bool(formData.get("chPush")),
         telegram: bool(formData.get("chTelegram")),
         email: bool(formData.get("chEmail")),
-        sms: bool(formData.get("chSms")),
       },
-      telegramChatIds: listField(formData.get("telegramChatIds")),
       emails: listField(formData.get("emails")),
-      phones: listField(formData.get("phones")),
     });
 
     if (!parsed.success) {
@@ -171,14 +164,13 @@ export async function saveDigestSettings(
 
     // A channel switched on with nobody to send to would fail silently at 9pm.
     const v = parsed.data;
-    if (v.channels.telegram && v.telegramChatIds.length === 0) {
-      return fail("Add at least one Telegram chat ID, or switch Telegram off.");
+    if (v.channels.telegram && digestChatIds().length === 0) {
+      return fail(
+        "Telegram has no recipients. Set TELEGRAM_OWNER_CHAT_ID in the environment, or switch Telegram off.",
+      );
     }
     if (v.channels.email && v.emails.length === 0) {
       return fail("Add at least one email address, or switch email off.");
-    }
-    if (v.channels.sms && v.phones.length === 0) {
-      return fail("Add at least one phone number, or switch SMS off.");
     }
 
     await saveSettingsGroup("digest", v);

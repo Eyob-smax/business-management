@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getSettings } from "@/lib/settings";
 import { channelReadiness } from "@/lib/digest/channels";
+import { telegramReadiness } from "@/lib/telegram/access";
 import { recentDigestRuns } from "@/lib/digest/send";
 import { SettingsForm } from "@/components/admin/settings-form";
 import { DigestSettingsCard } from "@/components/admin/digest-settings";
@@ -13,6 +14,7 @@ export default async function SettingsPage() {
   // Which channels actually have credentials on this deployment. Read on the
   // server so the secrets themselves never reach the browser.
   const readiness = channelReadiness();
+  const telegram = telegramReadiness();
   const runs = await recentDigestRuns(8).catch(() => []);
 
   return (
@@ -29,6 +31,7 @@ export default async function SettingsPage() {
       <DigestSettingsCard
         digest={digest}
         readiness={readiness}
+        telegram={telegram}
         timezone={business.timezone}
         runs={runs.map((r) => ({
           id: r.id,

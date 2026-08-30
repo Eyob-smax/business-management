@@ -53,9 +53,12 @@ npm run seed -- --wipe-demo    # removes only the sample data
 | `SEED_STAFF_NAME` / `SEED_STAFF_CODE` | First staff account. Blank name to skip. |
 | `RESTAURANT_NAME` / `SHOP_NAME` | Starting business names, editable in Settings. |
 | `CRON_SECRET` | Guards `/api/cron/daily-digest`. Unset = the endpoint is disabled. |
-| `TELEGRAM_BOT_TOKEN` | From @BotFather. The free nightly-summary channel. |
+| `TELEGRAM_BOT_TOKEN` | From @BotFather. Powers both the summary and the bot. |
+| `TELEGRAM_WEBHOOK_SECRET` | Guards the webhook. Unset = the bot is disabled. |
+| `TELEGRAM_OWNER_CHAT_ID` | The owner. Always allowed. |
+| `TELEGRAM_ALLOWED_CHAT_IDS` | Anyone else allowed to use the bot. **This is the security boundary.** |
+| `TELEGRAM_DIGEST_CHAT_IDS` | Who gets the nightly summary. Blank = everyone allowed. |
 | `RESEND_API_KEY` / `DIGEST_EMAIL_FROM` | Optional email delivery. |
-| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | Optional SMS. Not free — see The nightly summary. |
 
 `src/db/index.ts` throws if it is ever loaded in a browser, and every module that
 reads the database imports `server-only`, so a mistake fails the build instead of
@@ -151,65 +154,108 @@ are kept (`staff_id` is `ON DELETE SET NULL`) but the named orders lose their
 name, and the confirm dialog states how many. **No access** is the better choice
 almost every time, and the app says so.
 
-## The nightly summary
+## Telegram: the nightly summary and the bot
 
-Every night the app sends the day's numbers — revenue, cost, profit, margin,
-orders, the best-selling dishes, the busiest hour, who was working, and any
-problems staff flagged that are still open.
+One Telegram bot does two jobs, and both are free — no card, no monthly cap,
+and it works well on Ethiopian networks.
 
-### Which channel to use
+### 1. The nightly summary
 
-| Channel | Cost | Verdict |
-| --- | --- | --- |
-| **Phone notification** | Free | On by default. Goes to admins who enabled notifications. No setup. |
-| **Telegram** | **Free, unlimited, no card** | **Use this one.** Widely used in Ethiopia, rich formatting, instant. |
-| **Email** (Resend) | Free to 3,000/month | Good if you want a searchable written record. |
-| **SMS** (Twilio) | **Not free** | Last resort — see below. |
+Every night it sends the day's numbers: revenue, cost, profit, margin, orders,
+best-selling dishes, busiest hour, who was working, and any problems staff
+flagged that are still open.
 
-**On "free SMS": there isn't one for Ethiopian numbers.** Every provider —
-Twilio, BulkSMS, EasySendSMS, SMSEthiopia — is signup credit and then
-per-message billing, because Ethio Telecom charges for termination. Twilio's
-~$15 credit works out to roughly 250 messages at their Ethiopia rate, so one
-nightly recipient runs free for about eight months and then costs around 6 US
-cents a night. Trial accounts also only reach pre-verified numbers and prefix
-every message. The SMS channel is implemented and works if you want it; the app
-just refuses to pretend it is free. Telegram does the same job for nothing.
+Channels are Telegram (primary) and a phone notification to admins (free, no
+setup). Email via Resend's free tier is optional if you want a searchable
+written record.
 
-### Setting up Telegram (about 3 minutes)
+> **SMS was removed on purpose.** No provider offers a free tier to Ethiopian
+> numbers — every one is trial credit and then per-message billing, because
+> Ethio Telecom charges for termination. Telegram does the same job for
+> nothing, and answers questions on top.
 
-1. In Telegram, message **@BotFather** → `/newbot` → pick a name. Copy the token
-   into `TELEGRAM_BOT_TOKEN`.
-2. Each person who should get the summary sends the bot any message once (or add
-   the bot to a family group and post once).
-3. Visit `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy each
-   `chat.id`. A negative id is a group.
-4. Paste the ids into **Settings → Nightly summary → Telegram**, switch it on,
-   and press **Send now** to check.
+### 2. The bot you can ask
+
+Message the bot any time:
+
+| | |
+| --- | --- |
+| `/today` `/yesterday` | takings, cost, profit, top sellers |
+| `/week` `/month` `/year` | wider periods, each against the one before |
+| `/dishes` | best sellers, most profitable, thinnest margins, by group |
+| `/staff` | who sold what, busiest hour, best and quietest weekday |
+| `/expenses` | running cost per day, where the money goes |
+| `/notes` | messages and problems still open |
+| `/menu` | what is on, what is sold out, what has not sold in 30 days |
+| `/orders` | the last few orders today |
+| `/find tibs` | one dish across today, week, month and year |
+| `/summary` | the full nightly summary, on demand |
+
+There are inline buttons too, so most of it is tapping rather than typing.
+
+**The bot is read-only, by design and by test.** It can only ever query.
+Recording a sale, editing a price, filing an expense and changing access all
+stay in the app behind a real sign-in — a chat message is far too easy to spoof
+or fat-finger to be allowed to change what the business believes it sold. The
+smoke suite scans `src/lib/telegram/` for write calls (drizzle *and* raw SQL)
+and fails if any appear, so this cannot rot.
+
+### Setting it up (about 5 minutes)
+
+```bash
+# 1. Create the bot: message @BotFather in Telegram -> /newbot
+#    Paste the token into TELEGRAM_BOT_TOKEN in .env.local
+npm run telegram whoami          # check the token works
+
+# 2. Everyone who should have access presses Start on the bot.
+#    For a family group: add the bot to the group and send any message.
+npm run telegram ids             # prints their chat IDs
+
+# 3. Put the IDs in .env.local:
+#      TELEGRAM_OWNER_CHAT_ID='123456789'
+#      TELEGRAM_ALLOWED_CHAT_IDS='987654321,-100123456789'
+
+# 4. Point Telegram at the deployed app
+npm run telegram setup https://your-app.vercel.app
+```
+
+Then send `/today` to check. `npm run telegram info` inspects the webhook,
+`npm run telegram off` removes it.
+
+### Why the chat IDs live in the environment
+
+The bot reads out revenue and profit, and a bot username is public — anyone can
+find it and press Start. So the allowlist **is** the security boundary, and it
+lives in environment variables rather than the database: it is deployment
+configuration, and it must not be editable from a screen. With no allowlist
+configured the bot answers *nobody*, rather than everybody.
+
+The webhook is guarded twice: `TELEGRAM_WEBHOOK_SECRET` is registered with
+Telegram and returned in a header on every update (anything without it is
+refused before the body is parsed), and then the chat allowlist is checked per
+update.
 
 ### Scheduling
 
 `vercel.json` runs `/api/cron/daily-digest` hourly. The endpoint checks the
-local clock itself and only sends once the configured hour has arrived, and the
-`(day, channel)` unique index means the remaining hourly calls are no-ops. That
-combination is deliberate: it means the send hour is changed in Settings rather
-than by editing a cron expression, and a missed run self-heals on the next hour
-instead of silently skipping the day.
+local clock itself and only sends once your configured hour has arrived; the
+`(day, channel)` unique index makes the remaining hourly calls no-ops. That
+combination means the send hour is changed in Settings rather than by editing a
+cron expression, and a missed run self-heals on the next hour instead of
+silently skipping the day.
 
-If your plan only allows one cron a day, change the schedule to match your send
-hour in UTC (21:00 in Addis Ababa is `0 18 * * *`). Any external scheduler works
-too — [cron-job.org](https://cron-job.org) is free and allows any interval:
+If your plan only allows one cron a day, set the schedule to match your send
+hour in UTC (21:00 in Addis Ababa is `0 18 * * *`). Any external scheduler
+works — [cron-job.org](https://cron-job.org) is free:
 
 ```
 https://your-app.vercel.app/api/cron/daily-digest?key=<CRON_SECRET>
 ```
 
-The endpoint requires `CRON_SECRET` (Bearer header or `?key=`). Without that
-variable set it refuses everything rather than defaulting to open — an
-unguarded trigger would let a stranger spend your SMS credit. An admin's
-browser session is deliberately *not* sufficient either.
-
-Useful query parameters: `?force=1` ignores the hour check, `?resend=1` ignores
-the once-a-day guard, `?date=YYYY-MM-DD` backfills a specific day.
+Without `CRON_SECRET` the endpoint refuses everything rather than defaulting to
+open. An admin's browser session is deliberately not sufficient either.
+`?force=1` skips the hour check, `?resend=1` skips the once-a-day guard,
+`?date=YYYY-MM-DD` backfills a day.
 
 ## Money: how profit is worked out
 
@@ -288,7 +334,8 @@ emoji correctly.
 | `npm run seed -- --reset-codes` | Apply the codes now in `.env.local` to existing accounts |
 | `npm run reset-admin -- <name>` | New sign-in code for somebody who forgot theirs |
 | `npm run reset-admin -- --list` | Who has an account |
-| `npm run smoke` | Smoke test against a running server (65 checks) |
+| `npm run smoke` | Smoke test against a running server (69 checks) |
+| `npm run telegram <cmd>` | Bot setup: `whoami`, `ids`, `setup <url>`, `info`, `off` |
 | `npm run icons` | Regenerate the PWA icon set |
 | `npm run lint` | ESLint |
 
@@ -356,6 +403,8 @@ src/
     access.ts       the three access levels, as pure policy
     digest/         nightly summary: build.ts renders it, channels.ts delivers
                     it, send.ts claims (day, channel) so it goes out once
+    telegram/       the read-only bot: api.ts talks to Telegram, access.ts is
+                    the allowlist, bot.ts is every report and command
     auth.ts password.ts settings.ts expenses.ts notes.ts menu.ts money.ts dates.ts
 public/
   sw.js             service worker: offline shell, push, background sync

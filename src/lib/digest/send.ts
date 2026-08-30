@@ -6,13 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { businessDateOf, type DayKey } from "@/lib/dates";
 import { listAdminIds, sendPushToUsers } from "@/lib/push";
 import { buildDigest, type DigestPayload } from "./build";
-import {
-  sendEmail,
-  sendSms,
-  sendTelegram,
-  type ChannelId,
-  type ChannelResult,
-} from "./channels";
+import { sendEmail, sendTelegram, type ChannelId, type ChannelResult } from "./channels";
 
 /**
  * Sends the nightly summary and records what happened.
@@ -121,8 +115,10 @@ export async function sendDailyDigest({
   }
 
   if (digest.channels.telegram) {
+    // Recipients come from the environment, not from settings - see
+    // lib/telegram/access.ts.
     const result = await runChannel("telegram", day, module, force, () =>
-      sendTelegram(digest.telegramChatIds, payload),
+      sendTelegram(payload),
     );
     if (result) results.push(result);
   }
@@ -134,12 +130,6 @@ export async function sendDailyDigest({
     if (result) results.push(result);
   }
 
-  if (digest.channels.sms) {
-    const result = await runChannel("sms", day, module, force, () =>
-      sendSms(digest.phones, payload),
-    );
-    if (result) results.push(result);
-  }
 
   return { businessDate: day, skipped: false, results, payload };
 }
