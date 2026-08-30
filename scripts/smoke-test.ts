@@ -46,8 +46,21 @@ async function cookieFor(role: "admin" | "staff") {
   return { cookie: `bm_session=${token}`, user: u };
 }
 
+/**
+ * localePrefix is "always", so a bare "/staff" is a redirect. Page paths are
+ * therefore requested under an explicit locale; anything already carrying one,
+ * and every /api route, is left alone.
+ */
+const LOCALE = process.env.SMOKE_LOCALE ?? "am";
+
+function localised(path: string) {
+  if (path.startsWith("/api/") || /^\/(am|en)(\/|$)/.test(path)) return path;
+  if (path === "/") return path;
+  return `/${LOCALE}${path}`;
+}
+
 async function get(path: string, cookie?: string) {
-  const res = await fetch(BASE + path, {
+  const res = await fetch(BASE + localised(path), {
     headers: cookie ? { cookie } : {},
     redirect: "manual",
   });

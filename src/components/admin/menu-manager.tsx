@@ -8,6 +8,7 @@
  */
 import * as React from "react";
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Archive,
   ArchiveRestore,
@@ -91,6 +92,8 @@ export function MenuManager({
   items: AdminMenuItem[];
   lowMarginPct: number;
 }) {
+  const t = useTranslations("AdminMenu");
+  const c = useTranslations("Common");
   const { toast } = useToast();
   const [tab, setTab] = React.useState<"active" | "archived">("active");
   const [query, setQuery] = React.useState("");
@@ -108,8 +111,8 @@ export function MenuManager({
     setBusyId(null);
     toast(
       res.ok
-        ? { tone: "success", title: res.message ?? "Saved" }
-        : { tone: "error", title: res.error ?? "Could not save" },
+        ? { tone: "success", title: res.message ?? c("save") }
+        : { tone: "error", title: res.error ?? c("couldNotSave") },
     );
   };
 
@@ -127,7 +130,7 @@ export function MenuManager({
       const cat = categories.find((c) => c.id === item.categoryId);
       if (!groups.has(key)) {
         groups.set(key, {
-          name: cat?.name ?? "No group",
+          name: cat?.name ?? t("noGroup"),
           emoji: cat?.emoji ?? "\u{1F4CE}",
           items: [],
         });
@@ -135,7 +138,7 @@ export function MenuManager({
       groups.get(key)!.items.push(item);
     }
     return [...groups.entries()];
-  }, [filtered, categories]);
+  }, [filtered, categories, t]);
 
   const activeCount = items.filter((i) => !i.isArchived).length;
   const archivedCount = items.length - activeCount;
@@ -150,7 +153,7 @@ export function MenuManager({
           icon={<Plus className="size-4" />}
           onClick={() => setEditing("new")}
         >
-          Add a dish
+          {t("addDish")}
         </Button>
         <Button
           variant="secondary"
@@ -158,9 +161,9 @@ export function MenuManager({
           icon={<Tag className="size-4" />}
           onClick={() => setCatSheet("new")}
         >
-          Group
+          {t("group")}
         </Button>
-        <IconButton label="Adjust all cost estimates" variant="secondary" onClick={() => setCostSheet(true)}>
+        <IconButton label={t("adjustAllCosts")} variant="secondary" onClick={() => setCostSheet(true)}>
           <Percent className="size-4" />
         </IconButton>
       </div>
@@ -170,7 +173,7 @@ export function MenuManager({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search the menu..."
+          placeholder={t("searchMenu")}
           className="h-11 w-full rounded-full border border-line bg-surface pr-4 pl-10 text-[15px] text-ink placeholder:text-ink-3 focus:border-brand focus:ring-4 focus:ring-brand/12 focus:outline-none"
         />
       </div>
@@ -180,8 +183,8 @@ export function MenuManager({
           value={tab}
           onChange={setTab}
           options={[
-            { value: "active", label: `On the menu (${activeCount})` },
-            { value: "archived", label: `Removed (${archivedCount})` },
+            { value: "active", label: t("onTheMenu", { count: activeCount }) },
+            { value: "archived", label: t("removed", { count: archivedCount }) },
           ]}
         />
       ) : null}
@@ -189,16 +192,16 @@ export function MenuManager({
       {grouped.length === 0 ? (
         <EmptyState
           icon={<Utensils className="size-6" />}
-          title={tab === "archived" ? "Nothing removed" : "No dishes yet"}
+          title={tab === "archived" ? t("nothingRemoved") : t("noDishes")}
           body={
             tab === "archived"
-              ? "Dishes you take off the menu are kept here, so old reports still make sense."
-              : "Add your first dish, with its price and roughly what it costs you to make."
+              ? t("archivedBody")
+              : t("emptyBody")
           }
           action={
             tab === "active" ? (
               <Button variant="primary" onClick={() => setEditing("new")}>
-                Add a dish
+                {t("addDish")}
               </Button>
             ) : undefined
           }
@@ -208,7 +211,9 @@ export function MenuManager({
           <div key={key} className="space-y-2">
             <p className="px-1 text-[12px] font-bold tracking-[0.05em] text-ink-3 uppercase">
               {group.emoji} {group.name}
-              <span className="ml-1.5 font-medium normal-case">({group.items.length})</span>
+              <span className="ml-1.5 font-medium normal-case">
+                ({t("dishCount", { count: group.items.length })})
+              </span>
             </p>
 
             <Card className="divide-y divide-line">
@@ -232,7 +237,7 @@ export function MenuManager({
                           <Star className="size-3.5 shrink-0 fill-brand text-brand" />
                         ) : null}
                         {!item.isAvailable && !item.isArchived ? (
-                          <Badge tone="warn">sold out</Badge>
+                          <Badge tone="warn">{t("soldOut")}</Badge>
                         ) : null}
                       </p>
                       <p className="nums mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
@@ -240,7 +245,7 @@ export function MenuManager({
                           {formatMoney(item.priceCents)}
                         </span>
                         <span aria-hidden>-</span>
-                        <span>costs {formatMoney(item.estCostCents)}</span>
+                        <span>{t("costsYouShort", { amount: formatMoney(item.estCostCents) })}</span>
                         <span aria-hidden>-</span>
                         <span
                           className={cn("font-semibold", low ? "text-loss" : "text-profit")}
@@ -250,7 +255,7 @@ export function MenuManager({
                         {item.soldLast30 > 0 ? (
                           <>
                             <span aria-hidden>-</span>
-                            <span>{item.soldLast30} sold in 30d</span>
+                            <span>{t("soldIn30", { count: item.soldLast30 })}</span>
                           </>
                         ) : null}
                       </p>
@@ -259,7 +264,7 @@ export function MenuManager({
                     <div className="flex shrink-0 items-center gap-1">
                       {item.isArchived ? (
                         <IconButton
-                          label={`Restore ${item.name}`}
+                          label={t("restoreItem", { name: item.name })}
                           disabled={busyId === item.id}
                           onClick={() => run(item.id, () => restoreMenuItem(item.id))}
                         >
@@ -271,7 +276,7 @@ export function MenuManager({
                             onClick={() =>
                               run(item.id, () => setItemAvailability(item.id, !item.isAvailable))
                             }
-                            aria-label={item.isAvailable ? "Mark sold out" : "Mark in stock"}
+                            aria-label={item.isAvailable ? t("markSoldOut") : t("markInStock")}
                             className={cn(
                               "h-8 rounded-full px-2.5 text-[11.5px] font-bold transition active:scale-95",
                               item.isAvailable
@@ -279,10 +284,10 @@ export function MenuManager({
                                 : "bg-warn-soft text-warn",
                             )}
                           >
-                            {item.isAvailable ? "In stock" : "Sold out"}
+                            {item.isAvailable ? t("inStock") : t("soldOut")}
                           </button>
                           <IconButton
-                            label={item.isFeatured ? "Unpin" : "Pin to till"}
+                            label={item.isFeatured ? t("unpin") : t("pinToTill")}
                             disabled={busyId === item.id}
                             onClick={() =>
                               run(item.id, () => setItemFeatured(item.id, !item.isFeatured))
@@ -295,11 +300,11 @@ export function MenuManager({
                               )}
                             />
                           </IconButton>
-                          <IconButton label={`Edit ${item.name}`} onClick={() => setEditing(item)}>
+                          <IconButton label={t("editItem", { name: item.name })} onClick={() => setEditing(item)}>
                             <Pencil className="size-4" />
                           </IconButton>
                           <IconButton
-                            label={`Remove ${item.name}`}
+                            label={t("removeItem", { name: item.name })}
                             onClick={() =>
                               setConfirm({ kind: "archive-item", id: item.id, name: item.name })
                             }
@@ -321,7 +326,7 @@ export function MenuManager({
       {categories.length > 0 ? (
         <div className="space-y-2 pt-2">
           <p className="px-1 text-[12px] font-bold tracking-[0.05em] text-ink-3 uppercase">
-            Groups
+            {t("groups")}
           </p>
           <Card className="divide-y divide-line">
             {categories.map((c) => (
@@ -331,13 +336,13 @@ export function MenuManager({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-semibold text-ink">{c.name}</p>
-                  <p className="text-[12px] text-ink-3">{c.itemCount} dishes</p>
+                  <p className="text-[12px] text-ink-3">{t("dishCount", { count: c.itemCount })}</p>
                 </div>
-                <IconButton label={`Edit ${c.name}`} onClick={() => setCatSheet(c)}>
+                <IconButton label={t("editGroup", { name: c.name })} onClick={() => setCatSheet(c)}>
                   <Pencil className="size-4" />
                 </IconButton>
                 <IconButton
-                  label={`Remove ${c.name}`}
+                  label={t("removeGroup", { name: c.name })}
                   onClick={() => setConfirm({ kind: "archive-cat", id: c.id, name: c.name })}
                 >
                   <Archive className="size-4" />
@@ -370,14 +375,16 @@ export function MenuManager({
         open={Boolean(confirm)}
         onClose={() => setConfirm(null)}
         title={
-          confirm?.kind === "archive-cat" ? `Remove the ${confirm.name} group?` : `Remove ${confirm?.name}?`
+          confirm?.kind === "archive-cat"
+            ? t("removeGroupTitle", { name: confirm.name })
+            : t("removeItemTitle", { name: confirm?.name ?? "" })
         }
         body={
           confirm?.kind === "archive-cat"
-            ? "The dishes stay on the menu, they just lose this group."
-            : "It disappears from the till. Past sales keep it, and you can bring it back any time."
+            ? t("removeGroupBody")
+            : t("removeItemBody")
         }
-        confirmLabel="Remove"
+        confirmLabel={t("remove")}
         destructive
         onConfirm={async () => {
           if (!confirm) return;
@@ -388,8 +395,8 @@ export function MenuManager({
           setConfirm(null);
           toast(
             res.ok
-              ? { tone: "success", title: res.message ?? "Removed" }
-              : { tone: "error", title: res.error ?? "Could not remove" },
+              ? { tone: "success", title: res.message ?? t("removedToast") }
+              : { tone: "error", title: res.error ?? t("couldNotRemove") },
           );
         }}
       />
@@ -410,6 +417,8 @@ function ItemSheet({
   lowMarginPct: number;
   onClose: () => void;
 }) {
+  const t = useTranslations("AdminMenu");
+  const c = useTranslations("Common");
   const { toast } = useToast();
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     saveMenuItem,
@@ -427,10 +436,10 @@ function ItemSheet({
   React.useEffect(() => {
     if (!state) return;
     if (state.ok) {
-      toast({ tone: "success", title: state.message ?? "Saved" });
+      toast({ tone: "success", title: state.message ?? c("save") });
       onClose();
     } else {
-      toast({ tone: "error", title: state.error ?? "Could not save" });
+      toast({ tone: "error", title: state.error ?? c("couldNotSave") });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -444,8 +453,8 @@ function ItemSheet({
     <Sheet
       open
       onClose={onClose}
-      title={item ? `Edit ${item.name}` : "Add a dish"}
-      subtitle="The cost estimate is what drives your profit numbers."
+      title={item ? t("editDish", { name: item.name }) : t("addDish")}
+      subtitle={t("dishSubtitle")}
       size="md"
     >
       <form action={action} className="space-y-4 pt-1 pb-2">
@@ -454,11 +463,11 @@ function ItemSheet({
         <input type="hidden" name="isAvailable" value={available ? "on" : ""} />
         <input type="hidden" name="isFeatured" value={featured ? "on" : ""} />
 
-        <Field label="Name" required error={state?.fields?.name}>
+        <Field label={t("name")} required error={state?.fields?.name}>
           <Input
             name="name"
             defaultValue={item?.name ?? ""}
-            placeholder="e.g. Doro Wat"
+            placeholder={t("dishPlaceholder")}
             required
             maxLength={80}
             data-autofocus
@@ -466,7 +475,7 @@ function ItemSheet({
         </Field>
 
         <div>
-          <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">Picture</span>
+          <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">{t("picture")}</span>
           <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
             {FOOD_EMOJI.map((e) => (
               <button
@@ -486,7 +495,7 @@ function ItemSheet({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Price" required error={state?.fields?.price}>
+          <Field label={t("price")} required error={state?.fields?.price}>
             <Input
               name="price"
               value={price}
@@ -498,9 +507,9 @@ function ItemSheet({
             />
           </Field>
           <Field
-            label="Costs you"
+            label={t("costsYou")}
             error={state?.fields?.cost}
-            hint="Ingredients per plate"
+            hint={t("costHint")}
           >
             <Input
               name="cost"
@@ -526,8 +535,15 @@ function ItemSheet({
           >
             <p className="flex items-center justify-between text-[13px] font-semibold">
               <span className={margin < lowMarginPct ? "text-warn" : "text-profit"}>
-                {margin < 0 ? "You lose" : "You keep"} {formatMoney(Math.abs(profit))} per{" "}
-                {item?.unit ?? "plate"}
+                {margin < 0
+                  ? t("youLose", {
+                      amount: formatMoney(Math.abs(profit)),
+                      unit: t(`units.${item?.unit ?? "plate"}` as never),
+                    })
+                  : t("youKeep", {
+                      amount: formatMoney(Math.abs(profit)),
+                      unit: t(`units.${item?.unit ?? "plate"}` as never),
+                    })}
               </span>
               <span
                 className={cn(
@@ -541,16 +557,16 @@ function ItemSheet({
             {margin < lowMarginPct ? (
               <p className="mt-1.5 flex items-start gap-1.5 text-[12px] leading-snug text-warn">
                 <TriangleAlert className="mt-px size-3.5 shrink-0" />
-                That is below your {lowMarginPct}% target margin.
+                {t("belowTarget", { pct: lowMarginPct })}
               </p>
             ) : null}
           </div>
         ) : null}
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Group">
+          <Field label={t("group")}>
             <Select name="categoryId" defaultValue={item?.categoryId ?? ""}>
-              <option value="">No group</option>
+              <option value="">{t("noGroup")}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.emoji} {c.name}
@@ -558,11 +574,11 @@ function ItemSheet({
               ))}
             </Select>
           </Field>
-          <Field label="Sold by">
+          <Field label={t("soldBy")}>
             <Select name="unit" defaultValue={item?.unit ?? "plate"}>
               {UNITS.map((u) => (
                 <option key={u} value={u}>
-                  {u}
+                  {t(`units.${u}` as never)}
                 </option>
               ))}
             </Select>
@@ -573,24 +589,24 @@ function ItemSheet({
           <Toggle
             checked={available}
             onChange={setAvailable}
-            label="Available now"
-            description="Turn off when you run out - it disappears from the till."
+            label={t("availableNow")}
+            description={t("availableHint")}
           />
           <div className="h-px bg-line" />
           <Toggle
             checked={featured}
             onChange={setFeatured}
-            label="Pin to the top of the till"
-            description="For the things you sell all day."
+            label={t("pinTop")}
+            description={t("pinHint")}
           />
         </div>
 
         <div className="flex gap-2.5 pt-1">
           <Button type="button" variant="secondary" block onClick={onClose} disabled={pending}>
-            Cancel
+            {c("cancel")}
           </Button>
           <Button type="submit" variant="primary" block loading={pending}>
-            {item ? "Save changes" : "Add to menu"}
+            {item ? t("saveChanges") : t("addToMenu")}
           </Button>
         </div>
       </form>
@@ -607,6 +623,8 @@ function CategorySheet({
   category: AdminMenuCategory | null;
   onClose: () => void;
 }) {
+  const t = useTranslations("AdminMenu");
+  const c = useTranslations("Common");
   const { toast } = useToast();
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     saveCategory,
@@ -617,10 +635,10 @@ function CategorySheet({
   React.useEffect(() => {
     if (!state) return;
     if (state.ok) {
-      toast({ tone: "success", title: state.message ?? "Saved" });
+      toast({ tone: "success", title: state.message ?? c("save") });
       onClose();
     } else {
-      toast({ tone: "error", title: state.error ?? "Could not save" });
+      toast({ tone: "error", title: state.error ?? c("couldNotSave") });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -629,26 +647,26 @@ function CategorySheet({
     <Sheet
       open
       onClose={onClose}
-      title={category ? `Edit ${category.name}` : "New group"}
-      subtitle="Groups are the tabs staff use to find things quickly."
+      title={category ? t("editGroup", { name: category.name }) : t("newGroup")}
+      subtitle={t("groupSubtitle")}
       size="sm"
     >
       <form action={action} className="space-y-4 pt-1 pb-2">
         <input type="hidden" name="id" value={category?.id ?? ""} />
         <input type="hidden" name="emoji" value={emoji} />
 
-        <Field label="Name" required>
+        <Field label={t("name")} required>
           <Input
             name="name"
             defaultValue={category?.name ?? ""}
-            placeholder="e.g. Hot drinks"
+            placeholder={t("groupPlaceholder")}
             required
             data-autofocus
           />
         </Field>
 
         <div>
-          <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">Icon</span>
+          <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">{t("icon")}</span>
           <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
             {FOOD_EMOJI.map((e) => (
               <button
@@ -669,10 +687,10 @@ function CategorySheet({
 
         <div className="flex gap-2.5">
           <Button type="button" variant="secondary" block onClick={onClose} disabled={pending}>
-            Cancel
+            {c("cancel")}
           </Button>
           <Button type="submit" variant="primary" block loading={pending}>
-            Save
+            {c("save")}
           </Button>
         </div>
       </form>
@@ -683,6 +701,8 @@ function CategorySheet({
 /* -------------------------------------------------------------- bulk costs */
 
 function BumpCostsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useTranslations("AdminMenu");
+  const c = useTranslations("Common");
   const { toast } = useToast();
   const [percent, setPercent] = React.useState("10");
   const [busy, setBusy] = React.useState(false);
@@ -691,13 +711,13 @@ function BumpCostsSheet({ open, onClose }: { open: boolean; onClose: () => void 
     <Sheet
       open={open}
       onClose={onClose}
-      title="Adjust every cost estimate"
-      subtitle="For when market prices move across the board."
+      title={t("bumpTitle")}
+      subtitle={t("bumpSubtitle")}
       size="sm"
       footer={
         <div className="flex gap-2.5">
           <Button variant="secondary" block onClick={onClose} disabled={busy}>
-            Cancel
+            {c("cancel")}
           </Button>
           <Button
             variant="primary"
@@ -709,21 +729,21 @@ function BumpCostsSheet({ open, onClose }: { open: boolean; onClose: () => void 
               setBusy(false);
               toast(
                 res.ok
-                  ? { tone: "success", title: res.message ?? "Updated" }
-                  : { tone: "error", title: res.error ?? "Could not update" },
+                  ? { tone: "success", title: res.message ?? t("updated") }
+                  : { tone: "error", title: res.error ?? t("couldNotUpdate") },
               );
               if (res.ok) onClose();
             }}
           >
-            Apply
+            {t("apply")}
           </Button>
         </div>
       }
     >
       <div className="space-y-4 pt-1 pb-2">
         <Field
-          label="Change all cost estimates by"
-          hint="Use a negative number if things got cheaper. Prices are not touched."
+          label={t("bumpLabel")}
+          hint={t("bumpHint")}
         >
           <Input
             value={percent}
@@ -734,8 +754,7 @@ function BumpCostsSheet({ open, onClose }: { open: boolean; onClose: () => void 
         </Field>
         <p className="flex items-start gap-2 rounded-[12px] bg-info-soft px-3 py-2.5 text-[12px] leading-snug text-info">
           <ChevronDown className="mt-px size-3.5 shrink-0" />
-          This only changes future sales. Everything already recorded keeps the cost that applied
-          when it was sold.
+          {t("bumpNote")}
         </p>
       </div>
     </Sheet>

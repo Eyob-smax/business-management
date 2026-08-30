@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { KeyRound, TriangleAlert } from "lucide-react";
 import { changeCode, type FormState } from "@/app/actions/auth";
 import { Button } from "@/components/ui/primitives";

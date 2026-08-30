@@ -12,7 +12,6 @@
  */
 import * as React from "react";
 import { useLocale } from "next-intl";
-import { routing } from "@/i18n/routing";
 
 export function OfflineWarmer({ paths }: { paths: string[] }) {
   const locale = useLocale();
@@ -20,9 +19,9 @@ export function OfflineWarmer({ paths }: { paths: string[] }) {
   React.useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
 
-    // localePrefix is "as-needed": the default locale has no prefix.
-    const prefix = locale === routing.defaultLocale ? "" : `/${locale}`;
-    const urls = paths.map((p) => `${prefix}${p}`);
+    // localePrefix is "always", so every cached URL carries its locale and the
+    // Amharic and English copies of a page never collide in the cache.
+    const urls = paths.map((p) => `/${locale}${p}`);
 
     let cancelled = false;
 

@@ -7,7 +7,7 @@
  * Admins post directly, since they are reading reports anyway.
  */
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import {
   CircleCheck,
   CircleDot,

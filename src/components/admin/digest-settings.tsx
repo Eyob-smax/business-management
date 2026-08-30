@@ -10,6 +10,7 @@
  */
 import * as React from "react";
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Bot,
   CircleCheck,
@@ -72,6 +73,8 @@ export function DigestSettingsCard({
   runs: DigestRun[];
   timezone: string;
 }) {
+  const t = useTranslations("AdminDigest");
+  const c = useTranslations("Common");
   const { toast } = useToast();
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     saveDigestSettings,
@@ -87,8 +90,8 @@ export function DigestSettingsCard({
     if (!state) return;
     toast(
       state.ok
-        ? { tone: "success", title: state.message ?? "Saved" }
-        : { tone: "error", title: state.error ?? "Could not save", duration: 8000 },
+        ? { tone: "success", title: state.message ?? c("save") }
+        : { tone: "error", title: state.error ?? c("couldNotSave"), duration: 8000 },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -100,8 +103,8 @@ export function DigestSettingsCard({
     <Card className="pb-4">
       <CardHeader
         icon={<Send className="size-4" />}
-        title="Nightly summary"
-        subtitle="Revenue, cost, profit and the best dishes, sent every night"
+        title={t("title")}
+        subtitle={t("subtitle")}
       />
 
       <form action={action} className="space-y-4 px-4 pt-3">
@@ -115,31 +118,31 @@ export function DigestSettingsCard({
           <Toggle
             checked={enabled}
             onChange={setEnabled}
-            label="Send a summary every night"
-            description="One message with the day's takings, costs, profit and best sellers."
+            label={t("enable")}
+            description={t("enableHint")}
           />
           <div className="h-px bg-line" />
           <Toggle
             checked={skipEmpty}
             onChange={setSkipEmpty}
-            label="Stay quiet on days with no sales"
+            label={t("skipEmpty")}
           />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Field
-            label="Send at"
-            hint={`Local time in ${timezone.replace(/_/g, " ")}. On a plan that allows only one cron a day (Vercel Hobby), the time in vercel.json decides instead.`}
+            label={t("sendAt")}
+            hint={t("sendAtHint", { tz: timezone.replace(/_/g, " ") })}
           >
             <Select name="hourLocal" defaultValue={String(digest.hourLocal)}>
               {Array.from({ length: 24 }, (_, h) => (
                 <option key={h} value={h}>
-                  {h === 0 ? "Midnight" : `${String(h).padStart(2, "0")}:00`}
+                  {h === 0 ? t("midnight") : `${String(h).padStart(2, "0")}:00`}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Dishes to name" hint="Best sellers listed">
+          <Field label={t("dishesToName")} hint={t("dishesHint")}>
             <Input
               name="topDishes"
               type="number"
@@ -152,14 +155,14 @@ export function DigestSettingsCard({
 
         <div className="space-y-2.5">
           <p className="text-[12px] font-bold tracking-[0.05em] text-ink-3 uppercase">
-            Where to send it
+            {t("whereToSend")}
           </p>
 
           <ChannelBlock
             icon={<Smartphone className="size-4" />}
-            title="Phone notification"
-            cost="Free"
-            note="Goes to every admin who turned notifications on. No setup needed."
+            title={t("push")}
+            cost={t("free")}
+            note={t("pushNote")}
             available
             checked={channels.push}
             onChange={(v) => setChannel("push", v)}
@@ -167,12 +170,12 @@ export function DigestSettingsCard({
 
           <ChannelBlock
             icon={<MessageCircle className="size-4" />}
-            title="Telegram"
-            cost="Free, unlimited"
+            title={t("telegram")}
+            cost={t("telegramCost")}
             note={
               telegram.digestCount > 0
-                ? `Going to ${telegram.digestCount} chat${telegram.digestCount === 1 ? "" : "s"}. The same bot also answers questions on demand.`
-                : "The main channel. Recipients are set in the environment, not here."
+                ? t("telegramGoingTo", { count: telegram.digestCount })
+                : t("telegramNote")
             }
             available={readiness.telegram}
             missing={
@@ -186,15 +189,15 @@ export function DigestSettingsCard({
 
           <ChannelBlock
             icon={<Mail className="size-4" />}
-            title="Email"
-            cost="Free with your own mailbox"
-            note="Optional, over SMTP. Useful if you want a written record you can search later."
+            title={t("email")}
+            cost={t("emailCost")}
+            note={t("emailNote")}
             available={readiness.email}
             missing="SMTP_HOST, SMTP_USER, SMTP_PASS and MAIL_FROM"
             checked={channels.email}
             onChange={(v) => setChannel("email", v)}
           >
-            <Field label="Email addresses" hint="One per line.">
+            <Field label={t("emailAddresses")} hint={t("onePerLine")}>
               <Textarea
                 name="emails"
                 rows={2}
@@ -214,7 +217,7 @@ export function DigestSettingsCard({
             loading={pending}
             icon={<Save className="size-4" />}
           >
-            Save
+            {c("save")}
           </Button>
           <Button
             type="button"
@@ -228,19 +231,18 @@ export function DigestSettingsCard({
               setSending(false);
               toast(
                 res.ok
-                  ? { tone: "success", title: res.message ?? "Sent" }
-                  : { tone: "error", title: res.error ?? "Could not send", duration: 9000 },
+                  ? { tone: "success", title: res.message ?? t("sent") }
+                  : { tone: "error", title: res.error ?? t("couldNotSend"), duration: 9000 },
               );
             }}
           >
-            Send now
+            {c("sendNow")}
           </Button>
         </div>
 
         <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-ink-3">
           <Info className="mt-px size-3.5 shrink-0" />
-          &ldquo;Send now&rdquo; ignores the once-a-night rule so you can test it. The real send
-          happens even with nobody in the app, and can only go out once per day per channel.
+          {t("sendNowNote")}
         </p>
       </form>
 
@@ -248,32 +250,33 @@ export function DigestSettingsCard({
       <div className="mt-4 border-t border-line px-4 pt-4">
         <p className="flex items-center gap-2 text-[13px] font-bold text-ink">
           <Bot className="size-4 text-ink-3" />
-          Telegram bot
+          {t("botTitle")}
         </p>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
-          The same bot answers questions any time: today&rsquo;s takings, the week, best dishes,
-          costs, notes, what is sold out. It can only <strong>read</strong> — recording sales,
-          prices, expenses and access all stay in this app.
-        </p>
+        <p
+          className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2"
+          // The one <b> in this sentence is ours, from the catalog.
+          dangerouslySetInnerHTML={{ __html: t("botBody") }}
+        />
 
         <ul className="mt-3 space-y-1.5 text-[12px]">
-          <StatusRow ok={telegram.token} label="Bot token" missing="TELEGRAM_BOT_TOKEN" />
+          <StatusRow ok={telegram.token} label={t("botToken")} missing="TELEGRAM_BOT_TOKEN" />
           <StatusRow
             ok={telegram.webhookSecret}
-            label="Webhook secret"
+            label={t("webhookSecret")}
             missing="TELEGRAM_WEBHOOK_SECRET"
           />
-          <StatusRow ok={telegram.owner} label="Owner chat" missing="TELEGRAM_OWNER_CHAT_ID" />
+          <StatusRow ok={telegram.owner} label={t("ownerChat")} missing="TELEGRAM_OWNER_CHAT_ID" />
           <StatusRow
             ok={telegram.allowedCount > 0}
-            label={`${telegram.allowedCount} chat${telegram.allowedCount === 1 ? "" : "s"} allowed to use the bot`}
+            label={t("chatsAllowed", { count: telegram.allowedCount })}
             missing="TELEGRAM_ALLOWED_CHAT_IDS"
           />
         </ul>
 
         <p className="mt-2.5 text-[11.5px] leading-relaxed text-ink-3">
-          Set up with{" "}
-          <code className="rounded bg-surface-2 px-1 py-0.5">npm run telegram ids</code> then{" "}
+          {t("setUpWith")}{" "}
+          <code className="rounded bg-surface-2 px-1 py-0.5">npm run telegram ids</code>{" "}
+          {t("then")}{" "}
           <code className="rounded bg-surface-2 px-1 py-0.5">
             npm run telegram setup https://your-app
           </code>
@@ -284,7 +287,7 @@ export function DigestSettingsCard({
       {runs.length > 0 ? (
         <div className="mt-4 border-t border-line px-4 pt-3">
           <p className="text-[12px] font-bold tracking-[0.05em] text-ink-3 uppercase">
-            Recently sent
+            {t("recentlySent")}
           </p>
           <ul className="mt-2 space-y-1.5">
             {runs.map((r) => (
@@ -297,7 +300,8 @@ export function DigestSettingsCard({
                 <span className="font-semibold text-ink capitalize">{r.channel}</span>
                 <span className="nums text-ink-3">{r.businessDate}</span>
                 <span className="text-ink-3">
-                  {r.sentCount} sent{r.failedCount > 0 ? `, ${r.failedCount} failed` : ""}
+                  {t("sentCount", { count: r.sentCount })}
+                  {r.failedCount > 0 ? t("failedCount", { count: r.failedCount }) : ""}
                 </span>
                 <span className="ml-auto shrink-0 text-ink-3">{relativeTime(r.createdAt)}</span>
               </li>
@@ -310,6 +314,7 @@ export function DigestSettingsCard({
 }
 
 function StatusRow({ ok, label, missing }: { ok: boolean; label: string; missing: string }) {
+  const t = useTranslations("AdminDigest");
   return (
     <li className="flex items-start gap-2">
       {ok ? (
@@ -319,7 +324,12 @@ function StatusRow({ ok, label, missing }: { ok: boolean; label: string; missing
       )}
       <span className={ok ? "text-ink-2" : "text-warn"}>
         {label}
-        {!ok ? <> — set <code className="font-mono">{missing}</code></> : null}
+        {!ok ? (
+          <>
+            {" "}
+            {t("missingSuffix", { name: missing })}
+          </>
+        ) : null}
       </span>
     </li>
   );
@@ -346,6 +356,7 @@ function ChannelBlock({
   onChange: (v: boolean) => void;
   children?: React.ReactNode;
 }) {
+  const t = useTranslations("AdminDigest");
   return (
     <div
       className={cn(
@@ -364,7 +375,7 @@ function ChannelBlock({
           <p className="mt-1.5 text-[12px] leading-relaxed text-ink-2">{note}</p>
           {!available && missing ? (
             <p className="mt-1.5 text-[11.5px] leading-snug font-medium text-warn">
-              Not available yet — set {missing} on the server.
+              {t("notAvailable", { vars: missing })}
             </p>
           ) : null}
         </div>

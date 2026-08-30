@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { Settings2 } from "lucide-react";
 import { listExpenseCategories, listExpenses } from "@/lib/expenses";
 import { getBusinessSettings } from "@/lib/settings";

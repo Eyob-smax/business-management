@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { ArrowRight, MessageSquare, Plus, Trophy, Users } from "lucide-react";
 import {
   getItemPerformance,

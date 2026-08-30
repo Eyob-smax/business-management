@@ -9,8 +9,16 @@ export const routing = defineRouting({
   // people using it every day read Amharic first. English is at /en.
   defaultLocale: 'am',
   
-  // Only prefix the URL for non-default locales (e.g. /en/admin)
-  localePrefix: 'as-needed'
+  /**
+   * Every URL carries its locale: /am/staff, /en/staff.
+   *
+   * 'as-needed' left the default locale unprefixed, which meant an unprefixed
+   * path had no locale of its own and the middleware fell back to the
+   * NEXT_LOCALE cookie. Any navigation that dropped the prefix therefore
+   * snapped back to whatever the cookie last said - the "it resets to English
+   * when I change tab" bug. Always prefixing removes the guessing entirely.
+   */
+  localePrefix: 'always'
 });
 
 // Lightweight wrappers around Next.js' navigation APIs

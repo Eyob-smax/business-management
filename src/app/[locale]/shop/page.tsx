@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Boxes, Receipt, Smartphone, Wrench } from "lucide-react";
 import { canSignIn, getAuthedUser } from "@/lib/auth";

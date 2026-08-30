@@ -8,6 +8,7 @@
  */
 import * as React from "react";
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { BellRing, Database, HardDriveDownload, Info, Save, Send, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
@@ -29,26 +30,11 @@ import { usePush } from "@/hooks/use-push";
 import { useSync } from "@/components/providers/sync-provider";
 import { InstallHint } from "@/components/pwa/install-hint";
 
-const COSTING_OPTIONS: {
-  value: BusinessSettings["costingMode"];
-  title: string;
-  body: string;
-}[] = [
-  {
-    value: "auto",
-    title: "Estimates, corrected by real spending",
-    body: "Use your per-plate cost estimates day to day. On any day covered by an expense you marked as “this is what the food actually cost”, use that real figure instead. Recommended.",
-  },
-  {
-    value: "item",
-    title: "Per-plate estimates only",
-    body: "Food cost always comes from the estimate on each dish. Expenses - including ones marked as replacing estimates - are treated as ordinary running costs on top.",
-  },
-  {
-    value: "period",
-    title: "Recorded spending only",
-    body: "Ignore the per-plate estimates entirely for overall profit. Only money you actually recorded as an expense counts as cost. Per-dish profit still uses the estimates, because nothing else exists per dish.",
-  },
+/** Only the ids live here; the words come from the catalog at render time. */
+const COSTING_OPTIONS: { value: BusinessSettings["costingMode"]; key: string }[] = [
+  { value: "auto", key: "costingAuto" },
+  { value: "item", key: "costingItem" },
+  { value: "period", key: "costingPeriod" },
 ];
 
 const TIMEZONES = [
@@ -71,6 +57,8 @@ export function SettingsForm({
   business: BusinessSettings;
   notify: NotifySettings;
 }) {
+  const t = useTranslations("AdminSettings");
+  const c = useTranslations("Common");
   const { toast } = useToast();
   const push = usePush();
   const sync = useSync();
@@ -94,8 +82,8 @@ export function SettingsForm({
     if (!bizState) return;
     toast(
       bizState.ok
-        ? { tone: "success", title: bizState.message ?? "Saved" }
-        : { tone: "error", title: bizState.error ?? "Could not save" },
+        ? { tone: "success", title: bizState.message ?? c("save") }
+        : { tone: "error", title: bizState.error ?? c("couldNotSave") },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bizState]);
@@ -104,8 +92,8 @@ export function SettingsForm({
     if (!notifyState) return;
     toast(
       notifyState.ok
-        ? { tone: "success", title: notifyState.message ?? "Saved" }
-        : { tone: "error", title: notifyState.error ?? "Could not save" },
+        ? { tone: "success", title: notifyState.message ?? c("save") }
+        : { tone: "error", title: notifyState.error ?? c("couldNotSave") },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifyState]);
@@ -114,17 +102,17 @@ export function SettingsForm({
     <div className="space-y-5">
       {/* Business */}
       <Card className="pb-4">
-        <CardHeader title="The business" subtitle="Names, money and the trading day" />
+        <CardHeader title={t("businessTitle")} subtitle={t("businessSubtitle")} />
         <form action={bizAction} className="space-y-4 px-4 pt-4">
-          <Field label="Restaurant name" required>
+          <Field label={t("restaurantName")} required>
             <Input name="restaurantName" defaultValue={business.restaurantName} required maxLength={60} />
           </Field>
-          <Field label="Mobile shop name" required>
+          <Field label={t("shopName")} required>
             <Input name="shopName" defaultValue={business.shopName} required maxLength={60} />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Currency">
+            <Field label={t("currency")}>
               <Select name="currency" defaultValue={business.currency}>
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>
@@ -133,7 +121,7 @@ export function SettingsForm({
                 ))}
               </Select>
             </Field>
-            <Field label="Timezone">
+            <Field label={t("timezone")}>
               <Select name="timezone" defaultValue={business.timezone}>
                 {[...new Set([business.timezone, ...TIMEZONES])].map((t) => (
                   <option key={t} value={t}>
@@ -145,21 +133,21 @@ export function SettingsForm({
           </div>
 
           <Field
-            label="A new trading day starts at"
-            hint="Sales rung up before this hour count towards the night before. Useful if you serve past midnight."
+            label={t("dayStartsAt")}
+            hint={t("dayStartsHint")}
           >
             <Select name="dayCutoffHour" defaultValue={String(business.dayCutoffHour)}>
               {Array.from({ length: 13 }, (_, h) => (
                 <option key={h} value={h}>
-                  {h === 0 ? "Midnight" : `${h}:00`}
+                  {h === 0 ? t("midnight") : `${h}:00`}
                 </option>
               ))}
             </Select>
           </Field>
 
           <Field
-            label="Warn me when a dish keeps less than"
-            hint="Dishes below this margin are flagged in red."
+            label={t("lowMarginLabel")}
+            hint={t("lowMarginHint")}
           >
             <Input
               name="lowMarginPct"
@@ -174,7 +162,7 @@ export function SettingsForm({
           {/* Costing */}
           <div>
             <span className="mb-2 block text-[13px] font-semibold text-ink-2">
-              How should profit be worked out?
+              {t("costingQuestion")}
             </span>
             <input type="hidden" name="costingMode" value={costingMode} />
             <div className="space-y-2">
@@ -197,10 +185,12 @@ export function SettingsForm({
                         costingMode === o.value ? "border-brand bg-brand" : "border-line-strong",
                       )}
                     />
-                    {o.title}
-                    {o.value === "auto" ? <Badge tone="brand">default</Badge> : null}
+                    {t(`${o.key}Title` as never)}
+                    {o.value === "auto" ? <Badge tone="brand">{t("default")}</Badge> : null}
                   </p>
-                  <p className="mt-1.5 pl-6 text-[12.5px] leading-relaxed text-ink-2">{o.body}</p>
+                  <p className="mt-1.5 pl-6 text-[12.5px] leading-relaxed text-ink-2">
+                    {t(`${o.key}Body` as never)}
+                  </p>
                 </button>
               ))}
             </div>
@@ -214,7 +204,7 @@ export function SettingsForm({
             loading={bizPending}
             icon={<Save className="size-4" />}
           >
-            Save settings
+            {t("saveSettings")}
           </Button>
         </form>
       </Card>
@@ -223,21 +213,21 @@ export function SettingsForm({
       <Card className="pb-4">
         <CardHeader
           icon={<BellRing className="size-4" />}
-          title="Notifications"
-          subtitle="What should reach your phone, and when"
+          title={t("notificationsTitle")}
+          subtitle={t("notificationsSubtitle")}
         />
 
         <div className="px-4 pt-3">
           {!push.supported ? (
             <p className="rounded-[12px] bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-ink-2">
               {push.needsInstall
-                ? "On iPhone, add this app to your home screen first, then open it from there to allow notifications."
-                : "This browser cannot show notifications. Everything is still recorded in the bell menu."}
+                ? t("needsInstall")
+                : t("unsupported")}
             </p>
           ) : push.subscribed ? (
             <div className="flex items-center justify-between gap-3 rounded-[12px] bg-profit-soft p-3.5">
               <p className="text-[12.5px] font-semibold text-profit">
-                This device will receive notifications.
+                {t("deviceWillReceive")}
               </p>
               <div className="flex shrink-0 gap-1.5">
                 <Button
@@ -248,22 +238,22 @@ export function SettingsForm({
                     const r = await push.sendTest();
                     toast(
                       r.ok
-                        ? { tone: "success", title: "Test sent" }
-                        : { tone: "error", title: "Could not send" },
+                        ? { tone: "success", title: t("testSent") }
+                        : { tone: "error", title: t("couldNotSend") },
                     );
                   }}
                 >
-                  Test
+                  {t("test")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => void push.disable()}>
-                  Turn off
+                  {t("turnOff")}
                 </Button>
               </div>
             </div>
           ) : (
             <div className="rounded-[12px] border border-brand/25 bg-brand-soft p-3.5">
               <p className="text-[13px] font-semibold text-brand-ink">
-                Notifications are off on this device
+                {t("notificationsOff")}
               </p>
               {push.error ? (
                 <p className="mt-1 text-[12px] font-medium text-loss">{push.error}</p>
@@ -276,10 +266,10 @@ export function SettingsForm({
                 disabled={!push.configured}
                 onClick={async () => {
                   const okay = await push.enable();
-                  if (okay) toast({ tone: "success", title: "Notifications are on" });
+                  if (okay) toast({ tone: "success", title: t("notificationsOn") });
                 }}
               >
-                Turn them on
+                {t("turnThemOn")}
               </Button>
             </div>
           )}
@@ -294,34 +284,34 @@ export function SettingsForm({
           <Toggle
             checked={onSale}
             onChange={setOnSale}
-            label="When a sale is recorded"
-            description="One notification per batch that arrives, not one per plate."
+            label={t("onSale")}
+            description={t("onSaleHint")}
           />
           <div className="h-px bg-line" />
           <Toggle
             checked={onOffline}
             onChange={setOnOffline}
-            label="When offline sales come in late"
-            description="Tells you a phone reconnected and sent work it had been holding."
+            label={t("onOffline")}
+            description={t("onOfflineHint")}
           />
           <div className="h-px bg-line" />
           <Toggle
             checked={onNote}
             onChange={setOnNote}
-            label="When somebody leaves a note"
-            description="Problems always notify, whatever this is set to."
+            label={t("onNote")}
+            description={t("onNoteHint")}
           />
           <div className="h-px bg-line" />
           <Toggle
             checked={onVoid}
             onChange={setOnVoid}
-            label="When an order is cancelled"
+            label={t("onVoid")}
           />
 
           <div className="pt-3">
             <Field
-              label="Only tell me about single sales of at least"
-              hint={`Set to ${formatMoney(0)} to be told about every sale. Batches always notify.`}
+              label={t("saleMinLabel")}
+              hint={t("saleMinHint", { zero: formatMoney(0) })}
             >
               <Input
                 name="saleMin"
@@ -341,7 +331,7 @@ export function SettingsForm({
             loading={notifyPending}
             icon={<Save className="size-4" />}
           >
-            Save notification settings
+            {t("saveNotifications")}
           </Button>
         </form>
       </Card>
@@ -350,16 +340,18 @@ export function SettingsForm({
       <Card className="pb-4">
         <CardHeader
           icon={<Database className="size-4" />}
-          title="This device"
-          subtitle="Offline storage and app install"
+          title={t("deviceTitle")}
+          subtitle={t("deviceSubtitle")}
         />
         <div className="space-y-3 px-4 pt-3">
           <div className="flex items-center justify-between gap-3 rounded-[12px] bg-surface-2 p-3.5">
             <div>
-              <p className="text-[13px] font-semibold text-ink">Waiting to be sent</p>
+              <p className="text-[13px] font-semibold text-ink">{t("waitingToSend")}</p>
               <p className="nums mt-0.5 text-[12px] text-ink-3">
-                {sync.pending} record{sync.pending === 1 ? "" : "s"}
-                {sync.quarantined > 0 ? ` - ${sync.quarantined} rejected` : ""}
+                {t("recordCount", { count: sync.pending })}
+                {sync.quarantined > 0
+                  ? t("rejectedSuffix", { count: sync.quarantined })
+                  : ""}
               </p>
             </div>
             <Button
@@ -370,7 +362,7 @@ export function SettingsForm({
               icon={<HardDriveDownload className="size-3.5" />}
               onClick={() => void sync.flush()}
             >
-              Send now
+              {t("sendNow")}
             </Button>
           </div>
 
@@ -385,28 +377,27 @@ export function SettingsForm({
               if (sync.pending > 0) {
                 toast({
                   tone: "error",
-                  title: "Send your waiting records first",
-                  body: "Clearing now would throw away work that has not reached the database.",
+                  title: t("sendFirstTitle"),
+                  body: t("sendFirstBody"),
                 });
                 return;
               }
               try {
                 const keys = await caches.keys();
                 await Promise.all(keys.filter((k) => k.startsWith("bm-")).map((k) => caches.delete(k)));
-                toast({ tone: "success", title: "Offline pages cleared", body: "Reloading..." });
+                toast({ tone: "success", title: t("cacheCleared"), body: t("reloading") });
                 setTimeout(() => window.location.reload(), 700);
               } catch {
-                toast({ tone: "error", title: "Could not clear the cache" });
+                toast({ tone: "error", title: t("couldNotClear") });
               }
             }}
           >
-            Clear cached pages on this device
+            {t("clearCache")}
           </Button>
 
           <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-ink-3">
             <Info className="mt-px size-3.5 shrink-0" />
-            Clearing only removes copies of pages. Sales waiting to be sent are kept separately and
-            are never touched by this.
+            {t("clearNote")}
           </p>
         </div>
       </Card>

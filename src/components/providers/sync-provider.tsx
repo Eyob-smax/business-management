@@ -7,7 +7,7 @@
  * is still safely on the phone, otherwise they will write it on paper too.
  */
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import {
   getStatus,

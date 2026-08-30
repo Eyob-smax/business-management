@@ -8,7 +8,7 @@
  */
 import * as React from "react";
 import { useActionState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { ArrowLeft, CircleCheck, KeyRound, Mail, TriangleAlert } from "lucide-react";
 import { requestPasswordReset, resetPassword } from "@/app/actions/profile";
 import type { ActionResult } from "@/app/actions/_result";

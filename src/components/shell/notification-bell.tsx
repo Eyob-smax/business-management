@@ -8,7 +8,7 @@
  * naturally look for it.
  */
 import * as React from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { Bell, BellRing, Check, Send } from "lucide-react";
 import { relativeTime } from "@/lib/dates";
 import { cn } from "@/lib/utils";

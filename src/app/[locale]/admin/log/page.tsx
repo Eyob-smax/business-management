@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { Download, Notebook, Receipt } from "lucide-react";
 import { getRecentSales, getSummary } from "@/lib/analytics";
 import { listNoteThreads } from "@/lib/notes";

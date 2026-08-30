@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { ChevronRight } from "lucide-react";
 import type { ItemPerf } from "@/lib/analytics";
 import { formatMoney } from "@/lib/money";

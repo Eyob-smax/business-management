@@ -7,7 +7,8 @@
  * the client re-querying.
  */
 import * as React from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/routing";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Grain } from "@/lib/dates";
 import { rangeFor, shiftRange, today } from "@/lib/dates";
