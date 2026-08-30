@@ -196,7 +196,8 @@
     "dark": "ጨለማ",
     "system": "የስልኩ",
     "language": "ቋንቋ",
-    "signOut": "ውጣ"
+    "signOut": "ውጣ",
+    "myProfile": "የእኔ መገለጫ"
   },
   "Sync": {
     "statusLabel": "የመላኪያ ሁኔታ",

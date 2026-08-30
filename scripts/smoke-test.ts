@@ -452,6 +452,54 @@ async function main() {
   check("...and never twice", secondClaim.length === 0);
   await sql`DELETE FROM digest_runs WHERE business_date = ${probeDay}::date`;
 
+  /* ---- profile, recovery and session expiry ---- */
+  console.log("\nProfile & recovery:");
+
+  const profileOut = await get("/profile");
+  check(
+    "GET /profile redirects when signed out",
+    [307, 302, 303].includes(profileOut.status),
+    `got ${profileOut.status}`,
+  );
+
+  const profileIn = await get("/profile", admin.cookie);
+  check("GET /profile is 200 for a signed-in admin", profileIn.status === 200,
+    `got ${profileIn.status}`);
+  check("...and offers the email field to admins", profileIn.body.includes('name="email"'));
+
+  const profileStaff = await get("/profile", staff.cookie);
+  check("staff get a profile page too", profileStaff.status === 200, `got ${profileStaff.status}`);
+  check(
+    "...but no email field, since staff recover through an admin",
+    !profileStaff.body.includes('name="email"'),
+  );
+
+  const forgot = await get("/forgot");
+  check("GET /forgot is public", forgot.status === 200, `got ${forgot.status}`);
+
+  const badReset = await get("/reset?token=not-a-real-token-value-at-all");
+  check("a bogus reset link is refused", badReset.status === 200 &&
+    badReset.body.includes("cannot be used"), `got ${badReset.status}`);
+
+  // Expiry has to be enforced, not just configured.
+  const staleToken = await new SignJWT({
+    sub: staff.user.id,
+    name: staff.user.name,
+    role: staff.user.role,
+    avatar: staff.user.avatar,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt(Math.floor(Date.now() / 1000) - 7200)
+    .setExpirationTime(Math.floor(Date.now() / 1000) - 60)
+    .sign(secret);
+
+  const expired = await postJSON("/api/sync", { ops: [] }, `bm_session=${staleToken}`);
+  check("an expired session is refused", expired.status === 401, `got ${expired.status}`);
+
+  const authSource = readFileSync("src/lib/auth.ts", "utf8");
+  check("sessions last 24 hours", authSource.includes("SESSION_HOURS = 24"));
+  check("...and slide forward while in use", authSource.includes("touchSession"));
+
   /* ---- offline: flight payloads must never be served as pages ---- */
   console.log("\nOffline safety:");
 

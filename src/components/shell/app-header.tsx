@@ -14,6 +14,7 @@ import {
   Smartphone,
   Sun,
   SunMoon,
+  UserRound,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -119,9 +120,9 @@ export function AppHeader({
             </>
           ) : null}
           <MenuLink
-            href="/change-code"
-            icon={<Settings className="size-[18px]" />}
-            label={t("changeMyCode")}
+            href="/profile"
+            icon={<UserRound className="size-[18px]" />}
+            label={t("myProfile")}
             onNavigate={() => setMenuOpen(false)}
           />
 

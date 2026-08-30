@@ -46,34 +46,52 @@ type SeedCat = {
   items: SeedItem[];
 };
 
-/** Prices in Birr; cost is a starting estimate the admin will refine. */
+/**
+ * Prices in Birr; cost is a starting estimate the admin will refine.
+ *
+ * Grouped the way an Ethiopian menu actually reads: the fasting split first,
+ * because on a fasting day that is the only question a customer is asking.
+ */
 const MENU: SeedCat[] = [
   {
-    name: "Main dishes",
-    emoji: "\u{1F35B}",
-    color: "amber",
+    name: "Non-fasting (የፍስክ)",
+    emoji: "\u{1F356}",
+    color: "rose",
     items: [
       { name: "Doro Wat", emoji: "\u{1F357}", price: 320, cost: 165 },
       { name: "Key Wat", emoji: "\u{1F372}", price: 280, cost: 150 },
       { name: "Tibs", emoji: "\u{1F356}", price: 380, cost: 205 },
       { name: "Kitfo", emoji: "\u{1F969}", price: 450, cost: 260 },
-      { name: "Beyaynetu", emoji: "\u{1F957}", price: 250, cost: 105 },
-      { name: "Shiro", emoji: "\u{1F958}", price: 180, cost: 62 },
-      { name: "Misir Wat", emoji: "\u{1F373}", price: 170, cost: 58 },
-      { name: "Gomen", emoji: "\u{1F96C}", price: 150, cost: 48 },
-      { name: "Firfir", emoji: "\u{1F958}", price: 160, cost: 65 },
       { name: "Tere Siga", emoji: "\u{1F969}", price: 520, cost: 330 },
       { name: "Dulet", emoji: "\u{1F372}", price: 340, cost: 185 },
+      { name: "Firfir", emoji: "\u{1F958}", price: 160, cost: 65 },
+      { name: "Gomen be Siga", emoji: "\u{1F96C}", price: 300, cost: 170 },
+      { name: "Zilzil Tibs", emoji: "\u{1F356}", price: 420, cost: 240 },
     ],
   },
   {
-    name: "Fasting",
+    name: "Fasting (ጾም)",
     emoji: "\u{1F33F}",
     color: "emerald",
     items: [
       { name: "Fasting Beyaynetu", emoji: "\u{1F957}", price: 230, cost: 88 },
+      { name: "Shiro", emoji: "\u{1F958}", price: 180, cost: 62 },
+      { name: "Misir Wat", emoji: "\u{1F373}", price: 170, cost: 58 },
+      { name: "Gomen", emoji: "\u{1F96C}", price: 150, cost: 48 },
       { name: "Atkilt", emoji: "\u{1F955}", price: 160, cost: 52 },
       { name: "Timatim Fitfit", emoji: "\u{1F345}", price: 140, cost: 45 },
+      { name: "Dinich Wat", emoji: "\u{1F954}", price: 165, cost: 55 },
+      { name: "Bozena Shiro", emoji: "\u{1F958}", price: 210, cost: 78 },
+      { name: "Kik Alicha", emoji: "\u{1F9C7}", price: 160, cost: 50 },
+    ],
+  },
+  {
+    name: "Main dishes",
+    emoji: "\u{1F35B}",
+    color: "amber",
+    items: [
+      { name: "Beyaynetu", emoji: "\u{1F957}", price: 250, cost: 105 },
+      { name: "Injera", emoji: "\u{1FAD3}", price: 20, cost: 7, unit: "piece" },
     ],
   },
   {
@@ -84,13 +102,7 @@ const MENU: SeedCat[] = [
       { name: "Burger", emoji: "\u{1F354}", price: 260, cost: 130 },
       { name: "Club Sandwich", emoji: "\u{1F96A}", price: 220, cost: 105 },
       { name: "Pasta", emoji: "\u{1F35D}", price: 190, cost: 70 },
-      {
-        name: "Sambusa",
-        emoji: "\u{1F959}",
-        price: 40,
-        cost: 14,
-        unit: "piece",
-      },
+      { name: "Sambusa", emoji: "\u{1F959}", price: 40, cost: 14, unit: "piece" },
       { name: "Chips", emoji: "\u{1F35F}", price: 130, cost: 45 },
     ],
   },
@@ -99,27 +111,9 @@ const MENU: SeedCat[] = [
     emoji: "\u{2615}",
     color: "stone",
     items: [
-      {
-        name: "Buna (coffee)",
-        emoji: "\u{2615}",
-        price: 40,
-        cost: 12,
-        unit: "cup",
-      },
-      {
-        name: "Macchiato",
-        emoji: "\u{2615}",
-        price: 60,
-        cost: 20,
-        unit: "cup",
-      },
-      {
-        name: "Shai (tea)",
-        emoji: "\u{1F375}",
-        price: 30,
-        cost: 8,
-        unit: "cup",
-      },
+      { name: "Buna (coffee)", emoji: "\u{2615}", price: 40, cost: 12, unit: "cup" },
+      { name: "Macchiato", emoji: "\u{2615}", price: 60, cost: 20, unit: "cup" },
+      { name: "Shai (tea)", emoji: "\u{1F375}", price: 30, cost: 8, unit: "cup" },
       { name: "Spris", emoji: "\u{1F964}", price: 90, cost: 34, unit: "glass" },
     ],
   },
@@ -128,34 +122,10 @@ const MENU: SeedCat[] = [
     emoji: "\u{1F964}",
     color: "sky",
     items: [
-      {
-        name: "Soft drink",
-        emoji: "\u{1F964}",
-        price: 50,
-        cost: 30,
-        unit: "bottle",
-      },
-      {
-        name: "Ambo water",
-        emoji: "\u{1F4A7}",
-        price: 35,
-        cost: 20,
-        unit: "bottle",
-      },
-      {
-        name: "Avocado juice",
-        emoji: "\u{1F951}",
-        price: 120,
-        cost: 48,
-        unit: "glass",
-      },
-      {
-        name: "Mango juice",
-        emoji: "\u{1F96D}",
-        price: 120,
-        cost: 50,
-        unit: "glass",
-      },
+      { name: "Soft drink", emoji: "\u{1F964}", price: 50, cost: 30, unit: "bottle" },
+      { name: "Ambo water", emoji: "\u{1F4A7}", price: 35, cost: 20, unit: "bottle" },
+      { name: "Avocado juice", emoji: "\u{1F951}", price: 120, cost: 48, unit: "glass" },
+      { name: "Mango juice", emoji: "\u{1F96D}", price: 120, cost: 50, unit: "glass" },
       { name: "Beer", emoji: "\u{1F37B}", price: 90, cost: 58, unit: "bottle" },
       { name: "Tej", emoji: "\u{1F36F}", price: 110, cost: 45, unit: "glass" },
     ],

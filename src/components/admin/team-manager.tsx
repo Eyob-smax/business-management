@@ -57,10 +57,7 @@ import { CodeInput } from "@/components/ui/code-input";
 import { ConfirmDialog, Sheet } from "@/components/ui/overlay";
 import { useToast } from "@/components/ui/toast";
 
-const AVATARS = [
-  "\u{1F464}", "\u{1F467}", "\u{1F466}", "\u{1F469}", "\u{1F468}", "\u{1F454}",
-  "\u{1F4CB}", "\u{1F373}", "\u{1F35B}", "\u{1F4B0}", "\u{1F31F}", "\u{1F338}",
-];
+import { AVATAR_CHOICES as AVATARS } from "@/components/auth/profile-form";
 
 const ACCESS_ICON: Record<AccessLevel, React.ReactNode> = {
   full: <Unlock className="size-4" />,
@@ -396,7 +393,11 @@ function MemberSheet({
     null,
   );
   const [avatar, setAvatar] = React.useState(member?.avatar ?? "\u{1F464}");
+  // New accounts are staff. Promoting somebody to admin is a deliberate act on
+  // an existing account, not something to do by accident while adding a
+  // waitress mid-shift.
   const [role, setRole] = React.useState<"admin" | "staff">(member?.role ?? "staff");
+  const canChangeRole = Boolean(member);
 
   React.useEffect(() => {
     if (!state) return;
@@ -439,19 +440,29 @@ function MemberSheet({
           <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">
             What can they do?
           </span>
-          <Segmented<"admin" | "staff">
-            value={role}
-            onChange={setRole}
-            options={[
-              { value: "staff", label: "Record sales" },
-              { value: "admin", label: "See everything" },
-            ]}
-          />
-          <p className="mt-1.5 text-[12px] leading-snug text-ink-3">
-            {role === "staff"
-              ? "The till and their own sales. They never see costs, profit or other people's numbers."
-              : "Full access: reports, expenses, menu, team, and notifications."}
-          </p>
+          {canChangeRole ? (
+            <Segmented<"admin" | "staff">
+              value={role}
+              onChange={setRole}
+              options={[
+                { value: "staff", label: "Record sales" },
+                { value: "admin", label: "See everything" },
+              ]}
+            />
+          ) : (
+            <p className="rounded-[12px] bg-surface-2 px-3 py-2.5 text-[12.5px] leading-relaxed text-ink-2">
+              They will be able to record sales on the till and see their own shift. They never
+              see costs, profit, or anybody else&rsquo;s numbers. You can make somebody an admin
+              later by editing their account.
+            </p>
+          )}
+          {canChangeRole ? (
+            <p className="mt-1.5 text-[12px] leading-snug text-ink-3">
+              {role === "staff"
+                ? "The till and their own sales. They never see costs, profit or other people's numbers."
+                : "Full access: reports, expenses, menu, team, and notifications."}
+            </p>
+          ) : null}
         </div>
 
         <div>

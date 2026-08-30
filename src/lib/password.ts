@@ -40,14 +40,45 @@ export const normaliseHandle = (name: string) => name.trim().toLowerCase().repla
 /** Staff codes are exactly 6 digits - fast on a phone keypad, easy to recall. */
 export const PASSWORD_LENGTH = 6;
 
-export function validatePassword(password: string): string | null {
-  if (!/^\d{6}$/.test(password)) return "The code must be exactly 6 digits.";
-  if (/^(\d)\1{5}$/.test(password)) return "Do not use the same digit six times.";
-  if (["123456", "654321", "012345", "123123"].includes(password)) {
+/**
+ * Staff use a 6-digit code because they type it many times a shift on a phone
+ * behind a counter. Admins use a real password: their account can see every
+ * number in the business and can be reset over email, so it is worth more to
+ * an attacker and is typed far less often.
+ */
+export function validateCode(code: string): string | null {
+  if (!/^\d{6}$/.test(code)) return "The code must be exactly 6 digits.";
+  if (/^(\d)\1{5}$/.test(code)) return "Do not use the same digit six times.";
+  if (["123456", "654321", "012345", "123123"].includes(code)) {
     return "That code is too easy to guess.";
   }
   return null;
 }
+
+const WEAK_PASSWORDS = new Set([
+  "password", "password1", "12345678", "qwertyui", "letmein1",
+  "admin123", "restaurant", "abcd1234", "11111111",
+]);
+
+export function validateAdminPassword(password: string): string | null {
+  if (password.length < 8) return "The password must be at least 8 characters.";
+  if (password.length > 200) return "That password is too long.";
+  if (!/[a-zA-Z]/.test(password)) return "Include at least one letter.";
+  if (!/\d/.test(password)) return "Include at least one number.";
+  if (WEAK_PASSWORDS.has(password.toLowerCase())) return "That password is too easy to guess.";
+  return null;
+}
+
+/** Picks the right rule for the role. */
+export function validateSecret(secret: string, role: "admin" | "staff"): string | null {
+  return role === "admin" ? validateAdminPassword(secret) : validateCode(secret);
+}
+
+/** Kept for the seed and reset scripts, which only ever deal with codes. */
+export const validatePassword = validateCode;
+
+export const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
 export function randomCode(): string {
   for (;;) {

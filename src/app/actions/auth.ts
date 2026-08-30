@@ -73,7 +73,10 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     entityId: user.id,
   });
 
-  if (user.mustChangePassword) redirect("/change-code");
+  // An admin's first visit is where they swap the seeded code for a real
+  // password and add the email a reset link would go to - both live on the
+  // profile. Staff only have a code, so the simpler screen still fits them.
+  if (user.mustChangePassword) redirect(user.role === "admin" ? "/profile?setup=1" : "/change-code");
   redirect(user.role === "admin" ? "/admin" : "/staff");
 }
 

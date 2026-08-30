@@ -1,44 +1,68 @@
 "use client";
+/**
+ * One form, two kinds of secret.
+ *
+ * Staff type a 6-digit code into the boxes; admins type a real password. The
+ * server does not care which - it verifies whatever was typed against the
+ * stored hash - so the toggle here is purely about giving each person the
+ * right keyboard. It deliberately does NOT ask the server which kind a name
+ * uses, because that would turn the form into a way to discover which names
+ * are admins.
+ */
 import * as React from "react";
 import { useActionState } from "react";
-import { LogIn, TriangleAlert } from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { KeyRound, LogIn, TriangleAlert } from "lucide-react";
 import { login, type FormState } from "@/app/actions/auth";
 import { Button, Field, Input } from "@/components/ui/primitives";
 import { CodeInput } from "@/components/ui/code-input";
-import { useTranslations } from 'next-intl';
 
 const LAST_NAME_KEY = "bm-last-name";
+const LAST_MODE_KEY = "bm-last-mode";
 
 export function LoginForm() {
-  const t = useTranslations('LoginPage');
+  const t = useTranslations("LoginPage");
   const [state, action, pending] = useActionState<FormState, FormData>(login, null);
   const [name, setName] = React.useState("");
   const [code, setCode] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [mode, setMode] = React.useState<"code" | "password">("code");
   const formRef = React.useRef<HTMLFormElement>(null);
 
-  // Remember the name on this device only - the phone belongs to one person.
+  // The phone belongs to one person, so remembering both is a convenience,
+  // not a disclosure.
   React.useEffect(() => {
-    const saved = localStorage.getItem(LAST_NAME_KEY);
-    if (saved) setName(saved);
+    const savedName = localStorage.getItem(LAST_NAME_KEY);
+    if (savedName) setName(savedName);
+    if (localStorage.getItem(LAST_MODE_KEY) === "password") setMode("password");
   }, []);
 
   React.useEffect(() => {
-    if (state?.error) setCode("");
+    if (state?.error) {
+      setCode("");
+      setPassword("");
+    }
   }, [state?.error]);
+
+  const ready = name.trim().length > 0 && (mode === "code" ? code.length === 6 : password.length > 0);
 
   return (
     <form
       ref={formRef}
       action={action}
-      onSubmit={() => localStorage.setItem(LAST_NAME_KEY, name)}
+      onSubmit={() => {
+        localStorage.setItem(LAST_NAME_KEY, name);
+        localStorage.setItem(LAST_MODE_KEY, mode);
+      }}
       className="space-y-5"
     >
-      <Field label={t('yourName')}>
+      <Field label={t("yourName")}>
         <Input
           name="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={t('namePlaceholder')}
+          placeholder={t("namePlaceholder")}
           autoComplete="username"
           autoCapitalize="words"
           enterKeyHint="next"
@@ -47,18 +71,54 @@ export function LoginForm() {
         />
       </Field>
 
-      <CodeInput
-        name="code"
-        label={t('yourCode')}
-        value={code}
-        onChange={setCode}
-        disabled={pending}
-        invalid={Boolean(state?.error)}
-        autoFocus={Boolean(name)}
-        onComplete={() => {
-          if (name.trim()) formRef.current?.requestSubmit();
-        }}
-      />
+      {mode === "code" ? (
+        <>
+          {/* The hidden field carries whichever secret is in use, so the server
+              action sees one consistent field name. */}
+          <CodeInput
+            name="code"
+            label={t("yourCode")}
+            value={code}
+            onChange={setCode}
+            disabled={pending}
+            invalid={Boolean(state?.error)}
+            autoFocus={Boolean(name)}
+            onComplete={() => {
+              if (name.trim()) formRef.current?.requestSubmit();
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setMode("password")}
+            className="text-[12.5px] font-semibold text-brand underline-offset-4 hover:underline"
+          >
+            I use a password instead
+          </button>
+        </>
+      ) : (
+        <>
+          <Field label="Your password">
+            <Input
+              name="code"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              enterKeyHint="go"
+              required
+              disabled={pending}
+              autoFocus={Boolean(name)}
+            />
+          </Field>
+          <button
+            type="button"
+            onClick={() => setMode("code")}
+            className="text-[12.5px] font-semibold text-brand underline-offset-4 hover:underline"
+          >
+            I use a 6-digit code instead
+          </button>
+        </>
+      )}
 
       {state?.error ? (
         <p
@@ -76,17 +136,25 @@ export function LoginForm() {
         size="lg"
         block
         loading={pending}
-        icon={<LogIn className="size-4" />}
-        disabled={!name.trim() || code.length < 6}
+        icon={mode === "code" ? <LogIn className="size-4" /> : <KeyRound className="size-4" />}
+        disabled={!ready}
       >
-        {pending ? t('signingIn') : t('signIn')}
+        {pending ? t("signingIn") : t("signIn")}
       </Button>
 
-      <p className="text-center text-[12.5px] leading-relaxed text-ink-3">
-        {t('forgotCodeStart')}
-        <span className="font-medium text-ink-2"> {t('forgotCodeTeam')} </span>
-        {t('forgotCodeEnd')}
-      </p>
+      <div className="space-y-1.5 text-center">
+        <Link
+          href="/forgot"
+          className="block text-[12.5px] font-semibold text-brand underline-offset-4 hover:underline"
+        >
+          Forgot your password?
+        </Link>
+        <p className="text-[12.5px] leading-relaxed text-ink-3">
+          {t("forgotCodeStart")}
+          <span className="font-medium text-ink-2">{t("forgotCodeTeam")}</span>
+          {t("forgotCodeEnd")}
+        </p>
+      </div>
     </form>
   );
 }

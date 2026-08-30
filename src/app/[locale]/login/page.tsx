@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ShieldAlert } from "lucide-react";
+import { CircleCheck, ShieldAlert } from "lucide-react";
 import { getActiveUser } from "@/lib/auth";
 import { getBusinessSettings } from "@/lib/settings";
 import { LoginForm } from "@/components/auth/login-form";
@@ -14,9 +14,9 @@ export const metadata: Metadata = { title: "Sign in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ blocked?: string }>;
+  searchParams: Promise<{ blocked?: string; reset?: string }>;
 }) {
-  const { blocked } = await searchParams;
+  const { blocked, reset } = await searchParams;
   // getActiveUser, not getSessionUser: a blocked account still has a valid
   // cookie, and redirecting it onwards would bounce between here and the
   // layout forever.
@@ -49,6 +49,15 @@ export default async function LoginPage({
             {t('subtitle')}
           </p>
         </header>
+
+        {reset ? (
+          <div className="mb-4 flex items-start gap-2.5 rounded-[var(--radius-card)] border border-profit/30 bg-profit-soft p-4">
+            <CircleCheck className="mt-px size-4 shrink-0 text-profit" />
+            <p className="text-[13px] leading-relaxed font-medium text-profit">
+              Your password has been changed. Sign in with your name and the new password.
+            </p>
+          </div>
+        ) : null}
 
         {blocked ? (
           <div className="mb-4 flex items-start gap-2.5 rounded-[var(--radius-card)] border border-loss/30 bg-loss-soft p-4">

@@ -50,12 +50,34 @@ import {
 import { ConfirmDialog, Sheet } from "@/components/ui/overlay";
 import { useToast } from "@/components/ui/toast";
 
+/**
+ * A wide set, because a dish nobody can find an icon for ends up as a plate of
+ * rice. Ordered roughly the way an Ethiopian menu reads: stews and mains,
+ * fasting and vegetables, grains and bread, fast food, sweets, then drinks.
+ */
 const FOOD_EMOJI = [
-  "\u{1F35B}", "\u{1F372}", "\u{1F357}", "\u{1F356}", "\u{1F969}", "\u{1F957}",
-  "\u{1F958}", "\u{1F373}", "\u{1F96C}", "\u{1F354}", "\u{1F35D}", "\u{1F959}",
-  "\u{1F35F}", "\u{2615}", "\u{1F375}", "\u{1F964}", "\u{1F4A7}", "\u{1F37B}",
-  "\u{1F36F}", "\u{1F951}", "\u{1F96D}", "\u{1F345}", "\u{1F955}", "\u{1F96A}",
-  "\u{1F32E}", "\u{1F35C}", "\u{1F368}", "\u{1F370}",
+  // stews, meat, mains
+  "\u{1F35B}", "\u{1F372}", "\u{1F357}", "\u{1F356}", "\u{1F969}", "\u{1F953}",
+  "\u{1F415}", "\u{1F425}", "\u{1F414}", "\u{1F411}", "\u{1F410}", "\u{1F42E}",
+  "\u{1F358}", "\u{1F361}", "\u{1F373}", "\u{1F9C6}", "\u{1F32F}", "\u{1F32E}",
+  // fasting, vegetables, pulses
+  "\u{1F957}", "\u{1F96C}", "\u{1F966}", "\u{1F955}", "\u{1F345}", "\u{1F336}",
+  "\u{1F9C5}", "\u{1F9C4}", "\u{1F954}", "\u{1F360}", "\u{1F33F}", "\u{1F952}",
+  "\u{1F9C7}", "\u{1F95C}", "\u{1FAD8}", "\u{1F344}", "\u{1F33D}", "\u{1F9C8}",
+  // grains, bread, injera-ish
+  "\u{1F958}", "\u{1F35A}", "\u{1F35C}", "\u{1F35D}", "\u{1F35E}", "\u{1FAD3}",
+  "\u{1F950}", "\u{1F956}", "\u{1F968}", "\u{1FAD3}", "\u{1F33E}",
+  // fast food
+  "\u{1F354}", "\u{1F96A}", "\u{1F32D}", "\u{1F355}", "\u{1F35F}", "\u{1F959}",
+  "\u{1F969}", "\u{1F953}", "\u{1F9C0}", "\u{1F373}",
+  // sweets
+  "\u{1F370}", "\u{1F368}", "\u{1F366}", "\u{1F36A}", "\u{1F369}", "\u{1F36E}",
+  "\u{1F36C}", "\u{1F36F}", "\u{1F34C}", "\u{1F34E}", "\u{1F34A}", "\u{1F349}",
+  "\u{1F96D}", "\u{1F951}", "\u{1F353}", "\u{1F347}", "\u{1F34D}", "\u{1F95D}",
+  // drinks
+  "\u{2615}", "\u{1F375}", "\u{1F964}", "\u{1F9CB}", "\u{1F4A7}", "\u{1F37E}",
+  "\u{1F37B}", "\u{1F377}", "\u{1F942}", "\u{1F943}", "\u{1F9C9}", "\u{1F9CA}",
+  "\u{1F9C3}", "\u{1F376}",
 ];
 
 const UNITS = ["plate", "piece", "cup", "glass", "bottle", "kg", "portion", "wrap"];

@@ -60,6 +60,12 @@ export const users = pgTable(
     /** lower(name) - the actual login handle. Unique. */
     handle: text("handle").notNull(),
     passwordHash: text("password_hash").notNull(),
+    /**
+     * Admins only, and the sole channel for resetting a forgotten password.
+     * Staff sign in with a 6-digit code and have no email, which is why this
+     * is nullable rather than required.
+     */
+    email: text("email"),
     role: roleEnum("role").notNull().default("staff"),
     /**
      * Replaces the old is_active boolean. Admins move staff between the three
@@ -74,7 +80,37 @@ export const users = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("users_handle_uq").on(t.handle)],
+  (t) => [
+    uniqueIndex("users_handle_uq").on(t.handle),
+    // Partial-unique in spirit: two admins must not share a reset address.
+    uniqueIndex("users_email_uq").on(t.email),
+  ],
+);
+
+/**
+ * Password reset links.
+ *
+ * Only the HASH of the token is stored: a leaked database must not hand
+ * somebody a working reset link. Tokens are single-use and short-lived, and
+ * requesting a new one invalidates the outstanding ones for that account.
+ */
+export const passwordResets = pgTable(
+  "password_resets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    requestedIp: text("requested_ip"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("password_resets_token_uq").on(t.tokenHash),
+    index("password_resets_user_idx").on(t.userId, t.expiresAt),
+  ],
 );
 
 /* ---------------------------------------------------------- menu / catalog */

@@ -29,13 +29,28 @@ export {
   verifyPassword,
   normaliseHandle,
   validatePassword,
+  validateCode,
+  validateAdminPassword,
+  validateSecret,
+  isValidEmail,
   randomCode,
   PASSWORD_LENGTH,
 } from "./password";
 
 const COOKIE = "bm_session";
-/** 120 days - long enough that the app never logs someone out mid-shift. */
-const SESSION_DAYS = 120;
+
+/**
+ * 24 hours, refreshed on every authenticated request (see `touchSession`).
+ *
+ * A phone in daily use therefore never expires. The case to know about: a
+ * device left offline for more than a day cannot renew, so it asks for a
+ * sign-in when it next has signal. Nothing is lost when that happens - queued
+ * sales stay in the outbox, a 401 is treated as "retry later" rather than a
+ * reason to discard, and they sync straight after the new sign-in.
+ */
+const SESSION_HOURS = 24;
+/** Renew when less than this is left, so we are not re-signing every request. */
+const RENEW_WHEN_UNDER_HOURS = 20;
 
 function secret(): Uint8Array {
   const s = process.env.SESSION_SECRET;
@@ -63,7 +78,7 @@ export async function createSession(user: SessionUser) {
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${SESSION_DAYS}d`)
+    .setExpirationTime(`${SESSION_HOURS}h`)
     .sign(secret());
 
   const jar = await cookies();
@@ -72,8 +87,38 @@ export async function createSession(user: SessionUser) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: SESSION_DAYS * 24 * 60 * 60,
+    maxAge: SESSION_HOURS * 60 * 60,
   });
+}
+
+/**
+ * Slide the session forward once it is more than a fifth used.
+ *
+ * Best effort on purpose: a cookie cannot be set while a response is already
+ * streaming, so this throws in some render paths and the failure is swallowed.
+ * A missed renewal costs a sign-in, never data.
+ */
+async function touchSession(payload: {
+  sub?: string;
+  name?: unknown;
+  role?: unknown;
+  avatar?: unknown;
+  exp?: number;
+}) {
+  if (!payload.exp || !payload.sub) return;
+  const secondsLeft = payload.exp - Math.floor(Date.now() / 1000);
+  if (secondsLeft > RENEW_WHEN_UNDER_HOURS * 3600) return;
+
+  try {
+    await createSession({
+      id: payload.sub,
+      name: String(payload.name ?? "User"),
+      role: payload.role === "admin" ? "admin" : "staff",
+      avatar: String(payload.avatar ?? "\u{1F464}"),
+    });
+  } catch {
+    /* read-only render context - the next mutation renews it instead */
+  }
 }
 
 export async function destroySession() {
@@ -89,6 +134,11 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   try {
     const { payload } = await jwtVerify(token, secret());
     if (!payload.sub) return null;
+
+    // Keeps an actively used phone signed in without widening the window a
+    // stolen cookie stays valid for.
+    await touchSession(payload as Parameters<typeof touchSession>[0]);
+
     return {
       id: payload.sub,
       name: String(payload.name ?? "User"),
