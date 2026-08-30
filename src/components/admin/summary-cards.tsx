@@ -6,6 +6,7 @@ import { formatDayLabel, weekdayShort } from "@/lib/dates";
 import { Card, CardHeader } from "@/components/ui/primitives";
 import { CompositionBar, StatTile } from "@/components/ui/stat";
 import { TrendChart, VIZ } from "@/components/charts/charts";
+import { getTranslations } from "next-intl/server";
 
 /**
  * The four numbers an owner actually wants, then the story behind them.
@@ -13,7 +14,7 @@ import { TrendChart, VIZ } from "@/components/charts/charts";
  * Order is deliberate: revenue, cost, profit, margin. Profit is the headline
  * the app exists for, so it gets the tone colour and the sparkline.
  */
-export function SummaryCards({
+export async function SummaryCards({
   summary,
   previous,
   showTrend = true,
@@ -22,6 +23,7 @@ export function SummaryCards({
   previous?: Summary | null;
   showTrend?: boolean;
 }) {
+  const t = await getTranslations("Summary");
   const revenueSpark = summary.days.map((d) => d.revenueCents);
   const profitSpark = summary.days.map((d) => d.profitCents);
   const multiDay = summary.days.length > 1;
@@ -30,59 +32,62 @@ export function SummaryCards({
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2.5">
         <StatTile
-          label="Revenue"
+          label={t("revenue")}
           icon={<Receipt className="size-3.5" />}
           valueCents={summary.revenueCents}
-          sub={`${summary.orders} order${summary.orders === 1 ? "" : "s"} - ${summary.items} item${summary.items === 1 ? "" : "s"}`}
+          sub={t("ordersItems", { orders: summary.orders, items: summary.items })}
           deltaPct={previous ? deltaPct(previous.revenueCents, summary.revenueCents) : undefined}
           spark={multiDay ? revenueSpark : undefined}
         />
         <StatTile
-          label="Total cost"
+          label={t("totalCost")}
           icon={<Wallet className="size-3.5" />}
           valueCents={summary.totalCostCents}
-          sub={`${formatMoney(summary.cogsCents, { compact: true })} food - ${formatMoney(summary.overheadCents, { compact: true })} running`}
+          sub={t("costSplit", {
+            food: formatMoney(summary.cogsCents, { compact: true }),
+            running: formatMoney(summary.overheadCents, { compact: true }),
+          })}
           deltaPct={previous ? deltaPct(previous.totalCostCents, summary.totalCostCents) : undefined}
           inverseDelta
         />
         <StatTile
-          label="Profit"
+          label={t("profit")}
           icon={<TrendingUp className="size-3.5" />}
           valueCents={summary.profitCents}
           tone="profit"
           sub={
             summary.profitCents >= 0
-              ? "after food and running costs"
-              : "loss for this period"
+              ? t("afterCosts")
+              : t("lossPeriod")
           }
           deltaPct={previous ? deltaPct(previous.profitCents, summary.profitCents) : undefined}
           spark={multiDay ? profitSpark : undefined}
         />
         <StatTile
-          label="Margin"
+          label={t("margin")}
           icon={<Coins className="size-3.5" />}
           value={`${summary.marginPct.toFixed(1)}%`}
           tone={summary.marginPct >= 0 ? "profit" : "loss"}
-          sub={`Average order ${formatMoney(summary.avgOrderCents)}`}
+          sub={t("averageOrder", { amount: formatMoney(summary.avgOrderCents) })}
           deltaPct={previous ? deltaPct(previous.marginPct, summary.marginPct) : undefined}
         />
       </div>
 
       <Card className="p-4">
         <p className="mb-3 text-[12px] font-bold tracking-[0.05em] text-ink-3 uppercase">
-          Where the money went
+          {t("whereMoneyWent")}
         </p>
         <CompositionBar
           totalCents={summary.revenueCents}
           segments={[
-            { label: "Food cost", cents: summary.cogsCents, color: VIZ.COST },
+            { label: t("foodCost"), cents: summary.cogsCents, color: VIZ.COST },
             {
-              label: "Running cost",
+              label: t("runningCost"),
               cents: summary.overheadCents,
               color: "var(--color-viz-axis)",
             },
             {
-              label: summary.profitCents >= 0 ? "Profit" : "Loss",
+              label: summary.profitCents >= 0 ? t("profit") : t("loss"),
               cents: Math.abs(summary.profitCents),
               color: summary.profitCents >= 0 ? VIZ.PROFIT : "var(--color-loss)",
             },
@@ -93,19 +98,16 @@ export function SummaryCards({
           <p className="mt-3.5 flex items-start gap-2 rounded-[12px] bg-info-soft px-3 py-2.5 text-[12px] leading-snug text-info">
             <Info className="mt-px size-3.5 shrink-0" />
             <span>
-              Food cost for this period comes from the expenses you recorded
-              (<strong>{formatMoney(summary.overrideCostCents)}</strong>), not from the per-plate
-              estimates. Your estimates would have said{" "}
-              {formatMoney(summary.itemCostCents)}.
+              {t("overrideNote", {
+                amount: formatMoney(summary.overrideCostCents),
+                estimate: formatMoney(summary.itemCostCents),
+              })}
             </span>
           </p>
         ) : summary.costingMode === "item" && summary.overrideCostCents > 0 ? (
           <p className="mt-3.5 flex items-start gap-2 rounded-[12px] bg-warn-soft px-3 py-2.5 text-[12px] leading-snug text-warn">
             <Info className="mt-px size-3.5 shrink-0" />
-            <span>
-              Costing is set to <strong>per-plate estimates</strong>, so your
-              &ldquo;replace estimates&rdquo; expenses are being counted as ordinary running costs.
-            </span>
+            <span>{t("itemModeNote")}</span>
           </p>
         ) : null}
       </Card>
@@ -113,8 +115,8 @@ export function SummaryCards({
       {showTrend && multiDay ? (
         <Card className="pb-4">
           <CardHeader
-            title="Day by day"
-            subtitle="Bars are what came in; the line is what you kept"
+            title={t("dayByDay")}
+            subtitle={t("dayByDaySubtitle")}
           />
           <div className="px-3 pt-3">
             <TrendChart

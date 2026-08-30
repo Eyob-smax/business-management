@@ -1,4 +1,5 @@
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import type { ItemPerf } from "@/lib/analytics";
 import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ export type TimelineSlice = { label: string; items: ItemPerf[] };
  * dish's rank in this column against its rank over the longest timeframe, so
  * the risers and fallers are visible at a glance.
  */
-export function TimelineCompare({
+export async function TimelineCompare({
   slices,
   topN = 5,
 }: {
@@ -22,14 +23,15 @@ export function TimelineCompare({
   slices: TimelineSlice[];
   topN?: number;
 }) {
+  const t = await getTranslations("AdminReports");
   const baseline = slices[slices.length - 1];
   const baselineRank = new Map(baseline.items.map((i, index) => [i.key, index + 1]));
 
   return (
     <Card className="pb-3">
       <CardHeader
-        title="Winners across timeframes"
-        subtitle={`Top ${topN} by money in, compared with their place over the ${baseline.label.toLowerCase()}`}
+        title={t("winners")}
+        subtitle={t("winnersSubtitle", { n: topN, baseline: baseline.label.toLowerCase() })}
       />
 
       <div className="mt-3 overflow-x-auto px-4">
@@ -41,7 +43,7 @@ export function TimelineCompare({
               </p>
 
               {slice.items.length === 0 ? (
-                <p className="text-[12.5px] text-ink-3">No sales</p>
+                <p className="text-[12.5px] text-ink-3">{t("noSalesPeriod")}</p>
               ) : (
                 <ol className="space-y-1.5">
                   {slice.items.slice(0, topN).map((item, index) => {
@@ -66,7 +68,8 @@ export function TimelineCompare({
                             {item.name}
                           </span>
                           <span className="nums block text-[11px] text-ink-3">
-                            {formatMoney(item.revenueCents, { compact: true })} - {item.qty} sold
+                            {formatMoney(item.revenueCents, { compact: true })} -{" "}
+                            {t("soldQty", { count: item.qty })}
                           </span>
                         </span>
 
@@ -76,7 +79,10 @@ export function TimelineCompare({
                               "nums flex shrink-0 items-center gap-0.5 text-[10.5px] font-bold",
                               move > 0 ? "text-profit" : move < 0 ? "text-loss" : "text-ink-3",
                             )}
-                            title={`Ranked ${base} over the ${baseline.label.toLowerCase()}`}
+                            title={t("rankedOver", {
+                              rank: base ?? 0,
+                              baseline: baseline.label.toLowerCase(),
+                            })}
                           >
                             {move > 0 ? (
                               <ArrowUp className="size-3" />
@@ -99,9 +105,7 @@ export function TimelineCompare({
       </div>
 
       <p className="mt-3 px-4 text-[11.5px] leading-relaxed text-ink-3">
-        The arrow shows how many places a dish moves compared with its{" "}
-        {baseline.label.toLowerCase()} position. A green arrow means it is doing better lately than
-        it usually does.
+        {t("winnersFootnote", { baseline: baseline.label.toLowerCase() })}
       </p>
     </Card>
   );

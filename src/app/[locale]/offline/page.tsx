@@ -3,7 +3,11 @@ import { CloudOff } from "lucide-react";
 import { OfflineActions } from "@/components/pwa/offline-actions";
 import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = { title: "Offline" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("offline") };
+}
 
 /**
  * Served by the service worker when a page is requested that has never been

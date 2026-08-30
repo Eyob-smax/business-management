@@ -5,8 +5,13 @@ import { getBusinessSettings } from "@/lib/settings";
 import { inspectResetToken } from "@/lib/password-reset";
 import { ResetPasswordForm } from "@/components/auth/reset-forms";
 import { Button } from "@/components/ui/primitives";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Choose a new password" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("reset") };
+}
 
 /**
  * The token is checked before the form is rendered, so an expired or spent
@@ -19,6 +24,7 @@ export default async function ResetPage({
   searchParams: Promise<{ token?: string }>;
 }) {
   const { token = "" } = await searchParams;
+  const t = await getTranslations("Reset");
   const [business, check] = await Promise.all([
     getBusinessSettings().catch(() => null),
     inspectResetToken(token),
@@ -29,10 +35,12 @@ export default async function ResetPage({
       <div className="mx-auto w-full max-w-sm">
         <header className="mb-6 text-center">
           <h1 className="text-[22px] leading-tight font-bold tracking-tight text-ink">
-            {check.ok ? "Choose a new password" : "This link cannot be used"}
+            {check.ok ? t("chooseNew") : t("linkUnusable")}
           </h1>
           <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-3">
-            {check.ok ? `Signing in as ${check.name}` : (business?.restaurantName ?? "")}
+            {check.ok
+              ? t("signingInAs", { name: check.name })
+              : (business?.restaurantName ?? "")}
           </p>
         </header>
 
@@ -44,21 +52,21 @@ export default async function ResetPage({
               <p className="flex items-start gap-2 rounded-[14px] bg-loss-soft px-3.5 py-3 text-[13px] leading-snug font-medium text-loss">
                 <TriangleAlert className="mt-px size-4 shrink-0" />
                 {check.reason === "expired"
-                  ? "That link has expired. Reset links last 45 minutes."
+                  ? t("expired")
                   : check.reason === "used"
-                    ? "That link has already been used."
-                    : "That link is not valid."}
+                    ? t("alreadyUsed")
+                    : t("notValid")}
               </p>
               <Link href="/forgot" className="block">
                 <Button variant="primary" block>
-                  Ask for a new link
+                  {t("askNewLink")}
                 </Button>
               </Link>
               <Link
                 href="/login"
                 className="block text-center text-[13px] font-medium text-ink-3 underline-offset-4 hover:underline"
               >
-                Back to sign in
+                {t("backToSignIn")}
               </Link>
             </div>
           )}

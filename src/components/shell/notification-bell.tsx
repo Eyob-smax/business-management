@@ -8,6 +8,7 @@
  * naturally look for it.
  */
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Bell, BellRing, Check, Send } from "lucide-react";
 import { relativeTime } from "@/lib/dates";
@@ -33,6 +34,8 @@ export function NotificationBell() {
   const [unread, setUnread] = React.useState(0);
   const { toast } = useToast();
   const push = usePush();
+  // PushSwitch is nested inside this component, so it shares the hook.
+  const t = useTranslations("Notifications");
 
   const load = React.useCallback(async () => {
     try {
@@ -77,7 +80,7 @@ export function NotificationBell() {
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+        aria-label={unread ? t("ariaWithUnread", { count: unread }) : t("title")}
         className="relative inline-flex size-9 items-center justify-center rounded-full text-ink-2 transition active:scale-95"
       >
         {unread > 0 ? <BellRing className="size-[19px]" /> : <Bell className="size-[19px]" />}
@@ -91,8 +94,8 @@ export function NotificationBell() {
       <Sheet
         open={open}
         onClose={() => setOpen(false)}
-        title="Notifications"
-        subtitle={unread ? `${unread} unread` : "You are up to date"}
+        title={t("title")}
+        subtitle={unread ? t("unreadCount", { count: unread }) : t("upToDate")}
         size="md"
         footer={
           <div className="flex gap-2">
@@ -103,7 +106,7 @@ export function NotificationBell() {
               icon={<Check className="size-4" />}
               onClick={markAllRead}
             >
-              Mark all read
+              {t("markAllRead")}
             </Button>
           </div>
         }
@@ -117,8 +120,8 @@ export function NotificationBell() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={<Bell className="size-6" />}
-            title="Nothing yet"
-            body="When staff record a sale or leave a note, it will show up here."
+            title={t("nothingYet")}
+            body={t("nothingYetBody")}
           />
         ) : (
           <ul className="divide-y divide-line">
@@ -144,8 +147,8 @@ export function NotificationBell() {
                     <p className="mt-0.5 text-[12.5px] leading-snug text-ink-3">{n.body}</p>
                     <p className="mt-1 text-[11px] text-ink-3">{relativeTime(n.createdAt)}</p>
                   </div>
-                  {n.kind === "sale" ? <Badge tone="profit">sale</Badge> : null}
-                  {n.kind === "note" ? <Badge tone="info">note</Badge> : null}
+                  {n.kind === "sale" ? <Badge tone="profit">{t("sale")}</Badge> : null}
+                  {n.kind === "note" ? <Badge tone="info">{t("note")}</Badge> : null}
                 </div>
               );
 
@@ -172,8 +175,8 @@ export function NotificationBell() {
       return (
         <div className="mb-3 rounded-[14px] bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-ink-2">
           {push.needsInstall
-            ? "To get notifications on iPhone, first add this app to your home screen, then open it from there."
-            : "This browser cannot show notifications. The list below still records everything."}
+            ? t("needsInstall")
+            : t("unsupported")}
         </div>
       );
     }
@@ -182,7 +185,7 @@ export function NotificationBell() {
       return (
         <div className="mb-3 flex items-center justify-between gap-3 rounded-[14px] bg-profit-soft p-3.5">
           <p className="text-[12.5px] leading-snug font-semibold text-profit">
-            Phone notifications are on for this device.
+            {t("onForDevice")}
           </p>
           <div className="flex shrink-0 gap-1.5">
             <Button
@@ -193,15 +196,15 @@ export function NotificationBell() {
                 const r = await push.sendTest();
                 toast(
                   r.ok
-                    ? { tone: "success", title: "Test sent", body: "Check your notification tray." }
-                    : { tone: "error", title: "Could not send the test" },
+                    ? { tone: "success", title: t("testSent"), body: t("testSentBody") }
+                    : { tone: "error", title: t("testFailed") },
                 );
               }}
             >
-              Test
+              {t("test")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => void push.disable()}>
-              Turn off
+              {t("turnOff")}
             </Button>
           </div>
         </div>
@@ -211,10 +214,10 @@ export function NotificationBell() {
     return (
       <div className="mb-3 rounded-[14px] border border-brand/25 bg-brand-soft p-3.5">
         <p className="text-[13px] font-semibold text-brand-ink">
-          Get told the moment a sale is recorded
+          {t("pitchTitle")}
         </p>
         <p className="mt-1 text-[12.5px] leading-relaxed text-brand-ink/85">
-          Works even when the app is closed. One notification per batch, not one per plate.
+          {t("pitchBody")}
         </p>
         {push.error ? (
           <p className="mt-2 text-[12px] font-medium text-loss">{push.error}</p>
@@ -228,10 +231,10 @@ export function NotificationBell() {
           icon={<BellRing className="size-3.5" />}
           onClick={async () => {
             const ok = await push.enable();
-            if (ok) toast({ tone: "success", title: "Notifications are on" });
+            if (ok) toast({ tone: "success", title: t("turnedOn") });
           }}
         >
-          {push.configured ? "Turn on notifications" : "Not configured on server"}
+          {push.configured ? t("turnOn") : t("notConfigured")}
         </Button>
       </div>
     );

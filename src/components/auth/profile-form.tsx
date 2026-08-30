@@ -50,6 +50,7 @@ export function ProfileForm({
 }) {
   const { toast } = useToast();
   const c = useTranslations("Common");
+  const t = useTranslations("Profile");
   const isAdmin = user.role === "admin";
 
   const [profileState, profileAction, profilePending] = useActionState<
@@ -72,8 +73,8 @@ export function ProfileForm({
     if (!profileState) return;
     toast(
       profileState.ok
-        ? { tone: "success", title: profileState.message ?? "Saved" }
-        : { tone: "error", title: profileState.error ?? "Could not save", duration: 7000 },
+        ? { tone: "success", title: profileState.message ?? c("saved") }
+        : { tone: "error", title: profileState.error ?? c("couldNotSave"), duration: 7000 },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileState]);
@@ -82,8 +83,8 @@ export function ProfileForm({
     if (!secretState) return;
     toast(
       secretState.ok
-        ? { tone: "success", title: secretState.message ?? "Saved" }
-        : { tone: "error", title: secretState.error ?? "Could not save", duration: 7000 },
+        ? { tone: "success", title: secretState.message ?? c("saved") }
+        : { tone: "error", title: secretState.error ?? c("couldNotSave"), duration: 7000 },
     );
     if (secretState?.ok) {
       setCurrent("");
@@ -102,24 +103,24 @@ export function ProfileForm({
     <div className="space-y-4">
       {/* ---- who you are ---- */}
       <Card className="pb-4">
-        <CardHeader title="You" subtitle="How your name appears on every sale you record" />
+        <CardHeader title={t("youTitle")} subtitle={t("youSubtitle")} />
 
         <form action={profileAction} className="space-y-4 px-4 pt-3">
           <input type="hidden" name="avatar" value={avatar} />
 
-          <Field label="Name" required hint="This is also what you type to sign in.">
+          <Field label={t("name")} required hint={t("nameHint")}>
             <Input name="name" defaultValue={user.name} required maxLength={40} />
           </Field>
 
           <div>
-            <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">Picture</span>
+            <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">{t("picture")}</span>
             <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-10">
               {AVATAR_CHOICES.map((a) => (
                 <button
                   key={a}
                   type="button"
                   onClick={() => setAvatar(a)}
-                  aria-label={`Use ${a}`}
+                  aria-label={t("useAvatar", { emoji: a })}
                   className={cn(
                     "flex aspect-square items-center justify-center rounded-[10px] border text-[19px] transition active:scale-95",
                     avatar === a ? "border-brand bg-brand-soft" : "border-line bg-surface",
@@ -133,14 +134,14 @@ export function ProfileForm({
 
           {isAdmin ? (
             <Field
-              label="Email"
-              hint="Only used to send you a reset link if you forget your password. Admins only."
+              label={t("email")}
+              hint={t("emailHint")}
             >
               <Input
                 name="email"
                 type="email"
                 defaultValue={user.email ?? ""}
-                placeholder="you@example.com"
+                placeholder={t("emailPlaceholder")}
                 autoComplete="email"
                 inputMode="email"
               />
@@ -164,14 +165,12 @@ export function ProfileForm({
       <Card className="pb-4">
         <CardHeader
           icon={<KeyRound className="size-4" />}
-          title={isAdmin ? "Your password" : "Your code"}
-          subtitle={
-            isAdmin
-              ? "At least 8 characters, with a letter and a number"
-              : "Six digits, typed every time you sign in"
-          }
+          title={isAdmin ? t("passwordTitle") : t("codeTitle")}
+          subtitle={isAdmin ? t("passwordSubtitle") : t("codeSubtitle")}
           action={
-            user.mustChangePassword ? <Badge tone="warn">not changed yet</Badge> : undefined
+            user.mustChangePassword ? (
+              <Badge tone="warn">{t("notChangedYet")}</Badge>
+            ) : undefined
           }
         />
 
@@ -182,7 +181,7 @@ export function ProfileForm({
               <input type="hidden" name="next" value={next} />
               <input type="hidden" name="confirm" value={confirm} />
 
-              <Field label="Current password">
+              <Field label={t("currentPassword")}>
                 <Input
                   type="password"
                   value={current}
@@ -190,7 +189,7 @@ export function ProfileForm({
                   autoComplete="current-password"
                 />
               </Field>
-              <Field label="New password">
+              <Field label={t("newPassword")}>
                 <Input
                   type="password"
                   value={next}
@@ -198,7 +197,7 @@ export function ProfileForm({
                   autoComplete="new-password"
                 />
               </Field>
-              <Field label="New password again" error={mismatch ? "These do not match." : null}>
+              <Field label={t("newPasswordAgain")} error={mismatch ? t("doNotMatch") : null}>
                 <Input
                   type="password"
                   value={confirm}
@@ -211,20 +210,20 @@ export function ProfileForm({
             <>
               <CodeInput
                 name="current"
-                label="Current code"
+                label={t("currentCode")}
                 value={current}
                 onChange={setCurrent}
               />
-              <CodeInput name="next" label="New code" value={next} onChange={setNext} />
+              <CodeInput name="next" label={t("newCode")} value={next} onChange={setNext} />
               <CodeInput
                 name="confirm"
-                label="New code again"
+                label={t("newCodeAgain")}
                 value={confirm}
                 onChange={setConfirm}
                 invalid={mismatch}
               />
               {mismatch ? (
-                <p className="text-[12.5px] font-medium text-loss">These do not match.</p>
+                <p className="text-[12.5px] font-medium text-loss">{t("doNotMatch")}</p>
               ) : null}
             </>
           )}
@@ -238,7 +237,7 @@ export function ProfileForm({
             disabled={!secretReady}
             icon={<KeyRound className="size-4" />}
           >
-            {isAdmin ? "Change password" : "Change code"}
+            {isAdmin ? t("changePassword") : t("changeCode")}
           </Button>
         </form>
       </Card>
@@ -247,8 +246,7 @@ export function ProfileForm({
         <Card className="flex items-start gap-2.5 border-warn/30 bg-warn-soft p-4">
           <TriangleAlert className="mt-px size-4 shrink-0 text-warn" />
           <p className="text-[12.5px] leading-relaxed text-warn">
-            You have not added an email yet. Without one there is no way to reset your own
-            password if you forget it - you would need the other admin to do it for you.
+            {t("noEmailWarning")}
           </p>
         </Card>
       ) : null}
@@ -258,8 +256,8 @@ export function ProfileForm({
           <ShieldCheck className="mt-px size-3.5 shrink-0" />
           <span>
             <AtSign className="mr-0.5 inline size-3" />
-            Reset links go to <strong className="text-ink-2">{user.email}</strong> and expire
-            after 45 minutes.
+            {t("resetLinksGoTo")} <strong className="text-ink-2">{user.email}</strong>{" "}
+            {t("expireAfter")}
           </span>
         </p>
       ) : null}

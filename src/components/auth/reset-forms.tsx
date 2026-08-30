@@ -8,6 +8,7 @@
  */
 import * as React from "react";
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { ArrowLeft, CircleCheck, KeyRound, Mail, TriangleAlert } from "lucide-react";
 import { requestPasswordReset, resetPassword } from "@/app/actions/profile";
@@ -35,6 +36,7 @@ function Alert({ tone, children }: { tone: "error" | "success"; children: React.
 }
 
 export function ForgotPasswordForm() {
+  const t = useTranslations("Reset");
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     requestPasswordReset,
     null,
@@ -47,11 +49,11 @@ export function ForgotPasswordForm() {
       <div className="space-y-4">
         <Alert tone="success">{state.message}</Alert>
         <p className="text-[12.5px] leading-relaxed text-ink-3">
-          Check your inbox, and the spam folder if it is not there. The link works once.
+          {t("checkInbox")}
         </p>
         <Link href="/login" className="block">
           <Button variant="secondary" block icon={<ArrowLeft className="size-4" />}>
-            Back to sign in
+            {t("backToSignIn")}
           </Button>
         </Link>
       </div>
@@ -61,9 +63,9 @@ export function ForgotPasswordForm() {
   return (
     <form action={action} className="space-y-4">
       <Field
-        label="Your admin email"
+        label={t("adminEmail")}
         required
-        hint="The address saved on your profile."
+        hint={t("adminEmailHint")}
       >
         <Input
           name="email"
@@ -71,7 +73,7 @@ export function ForgotPasswordForm() {
           required
           autoComplete="email"
           inputMode="email"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           data-autofocus
         />
       </Field>
@@ -86,25 +88,27 @@ export function ForgotPasswordForm() {
         loading={pending}
         icon={<Mail className="size-4" />}
       >
-        Send me a reset link
+        {t("sendLink")}
       </Button>
 
       <p className="text-center text-[12.5px] leading-relaxed text-ink-3">
-        Staff do not have an email here. If you record sales, ask an admin to reset your code
-        from <span className="font-medium text-ink-2">Team</span>.
+        {t.rich("staffNote", {
+          team: (chunks) => <span className="font-medium text-ink-2">{chunks}</span>,
+        })}
       </p>
 
       <Link
         href="/login"
         className="block text-center text-[13px] font-medium text-ink-3 underline-offset-4 hover:underline"
       >
-        Back to sign in
+        {t("backToSignIn")}
       </Link>
     </form>
   );
 }
 
 export function ResetPasswordForm({ token }: { token: string }) {
+  const t = useTranslations("Reset");
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(
     resetPassword,
     null,
@@ -119,7 +123,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     <form action={action} className="space-y-4">
       <input type="hidden" name="token" value={token} />
 
-      <Field label="New password" required hint="At least 8 characters, with a letter and a number.">
+      <Field label={t("newPassword")} required hint={t("newPasswordHint")}>
         <Input
           name="next"
           type="password"
@@ -132,9 +136,9 @@ export function ResetPasswordForm({ token }: { token: string }) {
       </Field>
 
       <Field
-        label="New password again"
+        label={t("newPasswordAgain")}
         required
-        error={mismatch ? "These do not match." : null}
+        error={mismatch ? t("doNotMatch") : null}
       >
         <Input
           name="confirm"
@@ -157,7 +161,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         disabled={!ready}
         icon={<KeyRound className="size-4" />}
       >
-        Set my new password
+        {t("setPassword")}
       </Button>
     </form>
   );

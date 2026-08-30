@@ -1,7 +1,17 @@
 "use client";
 /**
- * "My sales" - read from this device's own ledger, so it works with no
- * network. Each row says plainly whether the office has it yet.
+ * "My sales".
+ *
+ * Two sources, merged by clientId:
+ *   the server  every sale this person has recorded, from any phone. This is
+ *               what makes the history survive a new device - reading only the
+ *               local ledger meant signing in elsewhere showed nothing.
+ *   the device  sales still queued here, which the server has not seen yet.
+ *
+ * The local copy wins for anything not yet confirmed, so a pending sale keeps
+ * saying "on this phone" rather than vanishing. With no network the server
+ * half is simply absent (or served from the worker cache) and the screen still
+ * shows everything this device recorded.
  */
 import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
@@ -16,28 +26,117 @@ import { useSync } from "@/components/providers/sync-provider";
 import { Badge, Button, Card, EmptyState, Segmented } from "@/components/ui/primitives";
 import { StatTile } from "@/components/ui/stat";
 
+/** A ledger row plus the one thing only the server knows: it was cancelled. */
+type Row = LedgerRecord & { voided?: boolean };
+
+type ServerSale = {
+  clientId: string;
+  soldAt: string;
+  businessDate: string;
+  totalCents: number;
+  costCents: number;
+  discountCents: number;
+  itemCount: number;
+  paymentMethod: string;
+  tableLabel: string | null;
+  customerNote: string | null;
+  status: "synced" | "void";
+  lines: {
+    name: string;
+    emoji: string;
+    qty: number;
+    unitPriceCents: number;
+    unitCostCents: number;
+  }[];
+};
+
 export function ShiftView({
   timezone,
   dayCutoffHour,
+  staffId,
 }: {
   timezone: string;
   dayCutoffHour: number;
+  /**
+   * Only ever a cache key. The server answers from the session cookie and
+   * ignores this entirely, so putting it in the URL gives away nothing - it
+   * exists so the service worker files one person's cached history separately
+   * from the next person's on a shared phone.
+   */
+  staffId: string;
 }) {
   const locale = useLocale();
   const t = useTranslations("Shift");
   const c = useTranslations("Common");
   const sync = useSync();
   const [day, setDay] = React.useState<string>(() => today(timezone, dayCutoffHour));
-  const [rows, setRows] = React.useState<LedgerRecord[] | null>(null);
+  const [rows, setRows] = React.useState<Row[] | null>(null);
   const [expanded, setExpanded] = React.useState<string | null>(null);
 
   const load = React.useCallback(async (key: string) => {
+    // The device first: it is instant, and it is the only source that knows
+    // about sales the server has not confirmed.
+    let local: Row[] = [];
     try {
-      setRows(await ledgerForDate(key));
+      // Rows written by someone else who used this phone are not this
+      // person's history. Older rows carry no author and are kept.
+      local = (await ledgerForDate(key)).filter(
+        (r) => !r.staffId || r.staffId === staffId,
+      );
     } catch {
-      setRows([]);
+      local = [];
     }
-  }, []);
+    setRows(local);
+
+    // Then the durable history. A failure here is normal (offline) and must
+    // not wipe what the device already showed.
+    try {
+      const res = await fetch(
+        `/api/my-sales?date=${key}&u=${encodeURIComponent(staffId)}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return;
+      const json = (await res.json()) as { sales: ServerSale[]; staffName?: string };
+
+      const byClientId = new Map<string, Row>();
+      for (const sale of json.sales) {
+        byClientId.set(sale.clientId, {
+          clientId: sale.clientId,
+          soldAt: sale.soldAt,
+          businessDate: sale.businessDate,
+          totalCents: sale.totalCents,
+          costCents: sale.costCents,
+          discountCents: sale.discountCents,
+          itemCount: sale.itemCount,
+          paymentMethod: sale.paymentMethod,
+          tableLabel: sale.tableLabel,
+          customerNote: sale.customerNote,
+          lines: sale.lines.map((l) => ({
+            menuItemId: null,
+            name: l.name,
+            emoji: l.emoji,
+            qty: l.qty,
+            unitPriceCents: l.unitPriceCents,
+            unitCostCents: l.unitCostCents,
+          })),
+          status: "synced",
+          voided: sale.status === "void",
+          staffName: json.staffName ?? "",
+        });
+      }
+
+      // Anything still queued on this device overrides the server's view of it.
+      for (const row of local) {
+        if (row.status !== "synced") byClientId.set(row.clientId, row);
+      }
+
+      setRows(
+        [...byClientId.values()].sort((a, b) => b.soldAt.localeCompare(a.soldAt)),
+      );
+    } catch {
+      /* offline - the local rows above are already on screen */
+    }
+  }, [staffId]);
 
   React.useEffect(() => {
     void load(day);
@@ -46,10 +145,11 @@ export function ShiftView({
   const todayKey = today(timezone, dayCutoffHour);
   const totals = React.useMemo(() => {
     const list = rows ?? [];
+    const counted = list.filter((r) => !r.voided);
     return {
-      count: list.length,
-      items: list.reduce((s, r) => s + r.itemCount, 0),
-      total: list.reduce((s, r) => s + r.totalCents, 0),
+      count: counted.length,
+      items: counted.reduce((s, r) => s + r.itemCount, 0),
+      total: counted.reduce((s, r) => s + r.totalCents, 0),
       pending: list.filter((r) => r.status === "pending").length,
     };
   }, [rows]);
@@ -115,7 +215,7 @@ export function ShiftView({
             const open = expanded === r.clientId;
             return (
               <li key={r.clientId}>
-                <Card className="overflow-hidden">
+                <Card className={cn("overflow-hidden", r.voided && "opacity-65")}>
                   <button
                     onClick={() => setExpanded(open ? null : r.clientId)}
                     className="flex w-full items-center gap-3 p-3.5 text-left"
@@ -124,7 +224,9 @@ export function ShiftView({
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-2 text-[14px] font-semibold text-ink">
                         <span className="nums">{formatMoney(r.totalCents)}</span>
-                        {r.status === "pending" ? (
+                        {r.voided ? (
+                          <Badge tone="loss">{t("voided")}</Badge>
+                        ) : r.status === "pending" ? (
                           <Badge tone="warn" dot>
                             {t("onThisPhone")}
                           </Badge>
@@ -140,7 +242,7 @@ export function ShiftView({
                         )}
                       </p>
                       <p className="nums mt-0.5 text-[12px] text-ink-3">
-                        {formatClock(r.soldAt)} - {r.itemCount} item{r.itemCount > 1 ? "s" : ""} -{" "}
+                        {formatClock(r.soldAt)} - {t("itemCount", { count: r.itemCount })} -{" "}
                         {labelFor(r.paymentMethod, locale)}
                         {r.tableLabel ? ` - ${r.tableLabel}` : ""}
                       </p>
@@ -169,12 +271,18 @@ export function ShiftView({
                       </ul>
                       {r.discountCents > 0 ? (
                         <p className="nums mt-2 text-[12.5px] font-medium text-loss">
-                          Discount - {formatMoney(r.discountCents)}
+                          {t("discount")} - {formatMoney(r.discountCents)}
                         </p>
                       ) : null}
                       {r.customerNote ? (
                         <p className="mt-2 rounded-[10px] bg-surface px-2.5 py-2 text-[12.5px] leading-snug text-ink-2">
                           {r.customerNote}
+                        </p>
+                      ) : null}
+                      {r.voided ? (
+                        <p className="mt-2 flex items-start gap-1.5 text-[12px] font-medium text-loss">
+                          <TriangleAlert className="mt-px size-3.5 shrink-0" />
+                          {t("voidedNote")}
                         </p>
                       ) : null}
                       {r.status === "rejected" ? (

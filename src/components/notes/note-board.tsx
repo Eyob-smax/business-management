@@ -7,6 +7,7 @@
  * Admins post directly, since they are reading reports anyway.
  */
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import {
   CircleCheck,
@@ -64,6 +65,7 @@ export function NoteBoard({
   /** False for read-only accounts: they can read the board but not add to it. */
   canPost?: boolean;
 }) {
+  const t = useTranslations("Notes");
   const { toast } = useToast();
   const router = useRouter();
   const sync = useSync();
@@ -94,11 +96,11 @@ export function NoteBoard({
         );
         toast(
           sync.online
-            ? { tone: "success", title: "Sent to the office" }
+            ? { tone: "success", title: t("sentToOffice") }
             : {
                 tone: "offline",
-                title: "Saved on this phone",
-                body: "It will reach the office when you have internet.",
+                title: t("savedOnPhone"),
+                body: t("willReachOffice"),
               },
         );
         // The optimistic copy lives in the outbox; refresh once it lands.
@@ -142,7 +144,7 @@ export function NoteBoard({
         <Card className="flex items-start gap-2.5 border-warn/30 bg-warn-soft p-3.5">
           <Lock className="mt-px size-4 shrink-0 text-warn" />
           <p className="text-[12.5px] leading-relaxed text-warn">
-            An admin has paused your ability to post. You can still read everything here.
+            {t("postingPaused")}
           </p>
         </Card>
       ) : (
@@ -203,8 +205,8 @@ export function NoteBoard({
       {threads.length === 0 ? (
         <EmptyState
           icon={<MessageSquare className="size-6" />}
-          title="No notes yet"
-          body="Use this for anything worth remembering: a complaint, a delivery that was short, a message for the family."
+          title={t("noNotes")}
+          body={t("noNotesBody")}
         />
       ) : (
         <ul className="space-y-2.5">
@@ -349,7 +351,7 @@ export function NoteBoard({
                         onChange={(e) => setReplyBody(e.target.value)}
                         rows={2}
                         maxLength={4000}
-                        placeholder="Write a reply..."
+                        placeholder={t("replyPlaceholder")}
                         data-autofocus
                       />
                       <div className="mt-2 flex justify-end gap-2">
@@ -384,7 +386,7 @@ export function NoteBoard({
       <ConfirmDialog
         open={Boolean(deleting)}
         onClose={() => setDeleting(null)}
-        title="Delete this note?"
+        title={t("deleteTitle")}
         body={deleting?.body.slice(0, 160)}
         confirmLabel="Delete"
         destructive

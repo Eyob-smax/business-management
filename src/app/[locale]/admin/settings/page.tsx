@@ -5,11 +5,19 @@ import { telegramReadiness } from "@/lib/telegram/access";
 import { recentDigestRuns } from "@/lib/digest/send";
 import { SettingsForm } from "@/components/admin/settings-form";
 import { DigestSettingsCard } from "@/components/admin/digest-settings";
+import { NeedsInternet } from "@/components/pwa/needs-internet";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Settings" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("settings") };
+}
 
 export default async function SettingsPage() {
   const { business, notify, digest } = await getSettings();
+  const o = await getTranslations("Offline");
+  const t = await getTranslations("AdminSettings");
 
   // Which channels actually have credentials on this deployment. Read on the
   // server so the secrets themselves never reach the browser.
@@ -20,12 +28,13 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-4">
       <header className="px-1">
-        <h1 className="text-[20px] leading-tight font-bold tracking-tight text-ink">Settings</h1>
+        <h1 className="text-[20px] leading-tight font-bold tracking-tight text-ink">{t("pageTitle")}</h1>
         <p className="mt-1 text-[13px] leading-relaxed text-ink-3">
-          How the business is set up and how profit is worked out.
+          {t("pageSubtitle")}
         </p>
       </header>
 
+      <NeedsInternet message={o("needsInternetSettings")}>
       <SettingsForm business={business} notify={notify} />
 
       <DigestSettingsCard
@@ -43,6 +52,7 @@ export default async function SettingsPage() {
           createdAt: r.createdAt.toISOString(),
         }))}
       />
+      </NeedsInternet>
     </div>
   );
 }

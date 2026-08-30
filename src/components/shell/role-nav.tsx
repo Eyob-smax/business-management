@@ -8,10 +8,12 @@ import {
   Utensils,
   Wallet,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { BottomNav } from "./bottom-nav";
 
 /** The bottom bar for whichever role is signed in. Used by shared routes. */
-export function RoleNav({ role }: { role: "admin" | "staff" }) {
+export async function RoleNav({ role }: { role: "admin" | "staff" }) {
+  const t = await getTranslations("Shell");
   if (role === "admin") {
     return (
       <BottomNav
@@ -22,7 +24,7 @@ export function RoleNav({ role }: { role: "admin" | "staff" }) {
             label: "Reports",
             icon: <BarChart3 className="size-[21px]" />,
           },
-          { href: "/admin/log", label: "Day log", icon: <Notebook className="size-[21px]" /> },
+          { href: "/admin/log", label: t("dayLog"), icon: <Notebook className="size-[21px]" /> },
           { href: "/admin/expenses", label: "Money", icon: <Wallet className="size-[21px]" /> },
           { href: "/admin/menu", label: "Menu", icon: <Utensils className="size-[21px]" /> },
         ]}
@@ -36,7 +38,7 @@ export function RoleNav({ role }: { role: "admin" | "staff" }) {
         { href: "/staff", label: "Sell", icon: <Store className="size-[21px]" /> },
         {
           href: "/staff/shift",
-          label: "My sales",
+          label: t("mySales"),
           icon: <ClipboardList className="size-[21px]" />,
         },
         { href: "/notes", label: "Notes", icon: <MessageSquare className="size-[21px]" /> },

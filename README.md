@@ -99,12 +99,63 @@ staff taps Save
   service worker reads the same outbox and posts it itself.
 - **The till works with no network at all.** The menu is cached in IndexedDB and
   rendered from there; the network is only ever a refresh.
+- **"My sales" is not tied to one phone.** The ledger above is what makes a sale
+  visible the instant it is taken, but it lives in that device's IndexedDB, so
+  signing in on a second phone once showed an empty history. The screen now
+  merges the device ledger with `GET /api/my-sales`, which returns the signed-in
+  person's own rows from the database, deduplicated by `clientId`. Anything still
+  queued locally wins, so a pending sale keeps saying "on this phone" rather than
+  disappearing; anything the server has confirmed follows the person to any
+  device. Ledger rows carry the id of whoever recorded them, so two people
+  sharing a phone never see each other's history.
 - **Totals are recomputed server-side.** The device supplies quantities and the
   price it displayed; it never gets to assert the arithmetic.
 
 Sync triggers: coming online, app regaining focus, a new item being queued, a
 20-second heartbeat while anything is pending, another tab syncing, and the
 service worker waking in the background.
+
+### Downloading the app for offline use
+
+Nobody thinks "I should open the week view now, in case I lose signal later", so
+the app does not wait to be asked. A few seconds after sign-in the service worker
+walks every page that person can reach — `src/lib/offline/warm-paths.ts`, filter
+variants and all — and saves each one **together with the JavaScript and CSS it
+needs to render**.
+
+That last part is the whole point. Saving a page's HTML without its chunks is
+worse than saving nothing: the document loads with no network, the script 404s,
+and React dies on a blank screen reading *"Application error: a client-side
+exception has occurred"*. The worker scans each saved page for every
+`/_next/static/...` reference — including the ones named only inside the inline
+flight payload — and caches those too.
+
+It walks the list one page at a time rather than in parallel, skips metered and
+data-saver connections, and re-runs at most every 30 minutes, because each page
+is a real server render with real database queries behind it. Coming back online
+ignores the throttle: whatever failed while the signal was gone is still missing.
+
+A filtered page that was never saved (`?grain=week&on=…`) falls back to the same
+route unfiltered rather than a dead end. The header already says the app is
+offline, so the numbers are read in that light.
+
+### What needs the internet, and how it says so
+
+Recording a sale, leaving a note and reading anything already saved all work with
+no network. Editing the menu, filing an expense, changing settings, managing
+accounts and editing your own profile do not — they are server actions, and there
+is no honest way to queue "raise every price by 10" against a menu somebody else
+may have changed meanwhile.
+
+So those screens are wrapped in `<NeedsInternet>`: offline they carry a plain
+explanation and the controls inside go `inert`, which takes them out of tab order
+and out of reach of a tap. Being unable to do something and knowing why is a
+normal state; being unable to do something and not knowing why is a broken app.
+
+There are error boundaries under all of it now — `src/app/[locale]/error.tsx`,
+`not-found.tsx` and a bilingual `global-error.tsx` — and the first thing the
+error screen does is check the connection, because nearly every crash it will
+ever catch is a page opened with no signal.
 
 ### Trying it offline
 
@@ -220,7 +271,12 @@ Message the bot any time:
 | `/find tibs` | one dish across today, week, month and year |
 | `/summary` | the full nightly summary, on demand |
 
-There are inline buttons too, so most of it is tapping rather than typing.
+**You do not have to know any of that.** `/start` installs a button menu that
+sits under the message box and stays there, with every report one tap away in
+both languages (a chart emoji, then "ዛሬ · Today"). Buttons arrive as ordinary text, so typing
+"week" or "ሳምንት" works exactly the same. `/buttons` brings the menu back for a
+chat that started before it existed. Reports still carry inline buttons of their
+own for drilling in and going back.
 
 **The bot is read-only, by design and by test.** It can only ever query.
 Recording a sale, editing a price, filing an expense and changing access all
@@ -375,7 +431,8 @@ emoji correctly.
 | `npm run seed -- --reset-codes` | Apply the codes now in `.env.local` to existing accounts |
 | `npm run reset-admin -- <name>` | New sign-in code for somebody who forgot theirs |
 | `npm run reset-admin -- --list` | Who has an account |
-| `npm run smoke` | Smoke test against a running server (69 checks) |
+| `npm run smoke` | Smoke test against a running server (110 checks) |
+| `npm run i18n:audit` | Both catalogs hold the same keys, and no English is hardcoded |
 | `npm run telegram <cmd>` | Bot setup: `whoami`, `ids`, `setup <url>`, `info`, `off` |
 | `npm run mail:check` | Verify SMTP; add an address to send a real test |
 | `npm run icons` | Regenerate the PWA icon set |
@@ -386,7 +443,10 @@ admin pages, staff filing expenses), all three access levels (a read-only device
 is refused with `write-blocked` and keeps its queue; a blocked device is bounced
 off every screen; the held records go through once access returns), the sync
 contract (replay is a duplicate, a client-supplied total is ignored, a malformed
-batch is refused), and that every page renders. It cleans up every row it
+batch is refused), that a sale recorded on one device is visible to the same
+account on another, that the offline download saves build assets and not just
+HTML, that the withdrawn payment methods are no longer offered but still read as
+words on old sales, and that every page renders. It cleans up every row it
 creates and always hands access back.
 
 Run it against a **production** build (`npm run build && npm start`), not a dev

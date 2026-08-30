@@ -1,9 +1,14 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { canSignIn, getAuthedUser, getCurrentUserRecord } from "@/lib/auth";
 import { ChangeCodeForm } from "@/components/auth/change-code-form";
 
-export const metadata: Metadata = { title: "Choose your code" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("changeCode") };
+}
 
 export default async function ChangeCodePage() {
   const gate = await getAuthedUser();

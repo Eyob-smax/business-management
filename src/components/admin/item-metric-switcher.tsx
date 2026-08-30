@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import type { ItemPerf } from "@/lib/analytics";
 import { Segmented } from "@/components/ui/primitives";
 import { ItemPerformanceList } from "./item-performance-list";
@@ -20,6 +21,7 @@ export function ItemMetricSwitcher({
   lowMarginPct: number;
   limit?: number;
 }) {
+  const t = useTranslations("AdminReports");
   const [metric, setMetric] = React.useState<Metric>("revenue");
 
   return (
@@ -30,19 +32,19 @@ export function ItemMetricSwitcher({
           onChange={setMetric}
           size="sm"
           options={[
-            { value: "revenue", label: "Money in" },
-            { value: "profit", label: "Money kept" },
-            { value: "qty", label: "Plates sold" },
+            { value: "revenue", label: t("moneyIn") },
+            { value: "profit", label: t("moneyKept") },
+            { value: "qty", label: t("platesSold") },
           ]}
         />
       </div>
 
       <p className="px-4 pt-2.5 text-[12px] leading-snug text-ink-3">
         {metric === "revenue"
-          ? "Ranked by what customers paid."
+          ? t("rankedRevenue")
           : metric === "profit"
-            ? "Ranked by what is left after the per-plate cost estimate."
-            : "Ranked by how many went out of the kitchen."}
+            ? t("rankedProfit")
+            : t("rankedQty")}
       </p>
 
       <div className="px-4 pb-2">

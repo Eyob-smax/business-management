@@ -5,6 +5,7 @@ import { getBusinessSettings } from "@/lib/settings";
 import { AppHeader } from "@/components/shell/app-header";
 import { BottomNav } from "@/components/shell/bottom-nav";
 import { OfflineWarmer } from "@/components/pwa/offline-warmer";
+import { staffWarmPaths } from "@/lib/offline/warm-paths";
 import { getTranslations } from 'next-intl/server';
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
@@ -19,8 +20,8 @@ export default async function StaffLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-dvh">
-      {/* The three screens staff move between all shift. */}
-      <OfflineWarmer paths={["/staff", "/staff/shift", "/notes"]} />
+      {/* Everything a waitress can open, saved before she needs it. */}
+      <OfflineWarmer paths={staffWarmPaths()} />
       <AppHeader
         title={business.restaurantName}
         subtitle={t('signedInAs', { name: user.name })}

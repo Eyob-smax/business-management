@@ -7,11 +7,13 @@
  * their basket. The waiting worker is activated on the next cold start.
  */
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/primitives";
 
 export function ServiceWorkerRegistrar() {
+  const t = useTranslations("Shell");
   const { toast } = useToast();
   const [waiting, setWaiting] = React.useState<ServiceWorker | null>(null);
 
@@ -60,8 +62,8 @@ export function ServiceWorkerRegistrar() {
     if (!waiting) return;
     toast({
       tone: "info",
-      title: "An update is ready",
-      body: "It will be applied the next time you open the app.",
+      title: t("updateReady"),
+      body: t("updateBody"),
       duration: 6000,
     });
   }, [waiting, toast]);
@@ -79,7 +81,7 @@ export function ServiceWorkerRegistrar() {
           setTimeout(() => window.location.reload(), 200);
         }}
       >
-        Update now
+        {t("updateNow")}
       </Button>
     </div>
   );

@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { canWrite, getAuthedUser } from "@/lib/auth";
 import { getMenuSnapshot } from "@/lib/menu";
 import { getBusinessSettings } from "@/lib/settings";
 import { Till } from "@/components/staff/till";
 
-export const metadata: Metadata = { title: "Sell" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("sell") };
+}
 
 /**
  * The menu is fetched server-side for the first paint and handed to the till,
@@ -25,6 +30,7 @@ export default async function StaffTillPage() {
     <Till
       initialMenu={menu}
       staffName={user.name}
+      staffId={user.id}
       timezone={business.timezone}
       dayCutoffHour={business.dayCutoffHour}
       canRecord={canWrite(user.accessLevel)}

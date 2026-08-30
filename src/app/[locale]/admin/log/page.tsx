@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { Download, Notebook, Receipt } from "lucide-react";
 import { getRecentSales, getSummary } from "@/lib/analytics";
@@ -12,7 +13,11 @@ import { SalesLog } from "@/components/admin/sales-log";
 import { NoteBoard } from "@/components/notes/note-board";
 import { LogTabs } from "@/components/admin/log-tabs";
 
-export const metadata: Metadata = { title: "Day log" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("dayLog") };
+}
 
 export default async function LogPage({
   searchParams,
@@ -22,6 +27,7 @@ export default async function LogPage({
   const params = await searchParams;
   const range = parseRange(params);
   const tab = params.tab === "notes" ? "notes" : "orders";
+  const t = await getTranslations("AdminLog");
 
   const user = await getSessionUser();
 
@@ -37,8 +43,8 @@ export default async function LogPage({
     <div className="space-y-4">
       <header className="flex items-start justify-between gap-3 px-1">
         <div>
-          <h1 className="text-[20px] leading-tight font-bold tracking-tight text-ink">Day log</h1>
-          <p className="mt-1 text-[13px] text-ink-3">Every order, and the notes for the period.</p>
+          <h1 className="text-[20px] leading-tight font-bold tracking-tight text-ink">{t("title")}</h1>
+          <p className="mt-1 text-[13px] text-ink-3">{t("subtitle")}</p>
         </div>
         <Link
           href={`/api/export?grain=${range.grain}&on=${range.from}`}

@@ -1,4 +1,5 @@
 import { Link } from "@/i18n/routing";
+import { useTranslations } from "next-intl";
 import { ChevronRight } from "lucide-react";
 import type { ItemPerf } from "@/lib/analytics";
 import { formatMoney } from "@/lib/money";
@@ -29,6 +30,7 @@ export function ItemPerformanceList({
   href?: (item: ItemPerf) => string;
   emptyBody?: string;
 }) {
+  const t = useTranslations("AdminReports");
   const sorted = [...items].sort((a, b) =>
     metric === "profit"
       ? b.profitCents - a.profitCents
@@ -48,8 +50,8 @@ export function ItemPerformanceList({
   if (shown.length === 0) {
     return (
       <EmptyState
-        title="No sales in this period"
-        body={emptyBody ?? "Once staff record orders, your best and worst dishes appear here."}
+        title={t("noSalesPeriod")}
+        body={emptyBody ?? t("noSalesBody")}
       />
     );
   }
@@ -77,7 +79,9 @@ export function ItemPerformanceList({
               <div className="flex items-baseline justify-between gap-2">
                 <p className="truncate text-[14px] font-semibold text-ink">{item.name}</p>
                 <p className="nums shrink-0 text-[14px] font-bold text-ink">
-                  {metric === "qty" ? `${item.qty} sold` : formatMoney(value, { compact: true })}
+                  {metric === "qty"
+                    ? t("soldQty", { count: item.qty })
+                    : formatMoney(value, { compact: true })}
                 </p>
               </div>
 
@@ -88,9 +92,11 @@ export function ItemPerformanceList({
               />
 
               <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11.5px] text-ink-3">
-                <span className="nums">{item.qty} sold</span>
+                <span className="nums">{t("soldQty", { count: item.qty })}</span>
                 <span aria-hidden>-</span>
-                <span className="nums">{formatMoney(item.revenueCents, { compact: true })} in</span>
+                <span className="nums">
+                  {t("revenueIn", { amount: formatMoney(item.revenueCents, { compact: true }) })}
+                </span>
                 <span aria-hidden>-</span>
                 <span
                   className={cn(
@@ -98,12 +104,16 @@ export function ItemPerformanceList({
                     item.profitCents >= 0 ? "text-profit" : "text-loss",
                   )}
                 >
-                  {formatMoney(item.profitCents, { compact: true, sign: true })} profit
+                  {t("profitSuffix", {
+                    amount: formatMoney(item.profitCents, { compact: true, sign: true }),
+                  })}
                 </span>
                 {item.marginPct < lowMarginPct ? (
-                  <Badge tone="loss">{item.marginPct.toFixed(0)}% margin</Badge>
+                  <Badge tone="loss">{t("marginSuffix", { pct: item.marginPct.toFixed(0) })}</Badge>
                 ) : (
-                  <span className="nums">{item.marginPct.toFixed(0)}% margin</span>
+                  <span className="nums">
+                    {t("marginSuffix", { pct: item.marginPct.toFixed(0) })}
+                  </span>
                 )}
               </div>
             </div>

@@ -87,6 +87,63 @@ const HOME_KEYBOARD: InlineButton[][] = [
   ],
 ];
 
+/**
+ * The buttons that sit under the composer and stay there between messages.
+ *
+ * Commands are fine once you know them; nobody should have to. Each label
+ * carries both languages because the reports themselves are still English -
+ * the word in your own language is what makes the row scannable.
+ *
+ * Reply-keyboard buttons arrive as ordinary text, so every label is also a
+ * spelling the bot understands (see BUTTON_ACTIONS).
+ */
+const MENU_BUTTONS: { label: string; action: string }[] = [
+  { label: "\u{1F4CA} ዛሬ · Today", action: "r:day" },
+  { label: "\u{1F4C5} ሳምንት · Week", action: "r:week" },
+  { label: "\u{1F4C6} ወር · Month", action: "r:month" },
+  { label: "\u{1F4C8} ዓመት · Year", action: "r:year" },
+  { label: "\u{1F372} ምርጥ ምግቦች · Best dishes", action: "dishes" },
+  { label: "\u{1F465} ሠራተኞች · People", action: "staff" },
+  { label: "\u{1F4B8} ወጪዎች · Costs", action: "expenses" },
+  { label: "\u{1F4DD} ማስታወሻዎች · Notes", action: "notes" },
+  { label: "\u{1F4CB} ምናሌ · Menu", action: "menu" },
+  { label: "\u{1F9FE} ትዕዛዞች · Orders", action: "orders" },
+  { label: "❓ እገዛ · Help", action: "help" },
+];
+
+/** Two per row, with the odd one out on its own. */
+export const MENU_KEYBOARD: string[][] = MENU_BUTTONS.reduce<string[][]>((rows, b, i) => {
+  if (i % 2 === 0) rows.push([b.label]);
+  else rows[rows.length - 1].push(b.label);
+  return rows;
+}, []);
+
+/**
+ * Buttons come back as text, and people also just type "week". Both are
+ * matched on a stripped-down form of the label, so an emoji change or a
+ * different separator does not break the menu.
+ */
+const normalise = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+
+const BUTTON_ACTIONS = new Map<string, string>();
+for (const b of MENU_BUTTONS) {
+  BUTTON_ACTIONS.set(normalise(b.label), b.action);
+  // ...and each half on its own, so the Amharic or the English alone both work.
+  for (const part of b.label.split("·")) {
+    const key = normalise(part);
+    if (key) BUTTON_ACTIONS.set(key, b.action);
+  }
+}
+
+/** The action a plain (non-slash) message asks for, if any. */
+function actionForText(text: string): string | null {
+  return BUTTON_ACTIONS.get(normalise(text)) ?? null;
+}
+
 const backKeyboard: InlineButton[][] = [[{ text: "\u{2190} Back", callback_data: "home" }]];
 
 /* ------------------------------------------------------------------ reports */
@@ -501,8 +558,19 @@ export async function renderAction(action: string, argument = ""): Promise<{ tex
   }
 }
 
+const WELCOME = [
+  "\u{1F44B} <b>ልዑል ማዕድ</b>",
+  "",
+  "The buttons below stay put - tap one any time.",
+  "Type <code>/find shiro</code> to follow a single dish, or <code>/help</code> for everything.",
+  "",
+  "<i>Read only. Nothing here can change a sale, a price or an expense.</i>",
+].join("\n");
+
 const COMMAND_MAP: Record<string, string> = {
   start: "home",
+  buttons: "home",
+  keyboard: "home",
   home: "home",
   help: "help",
   today: "r:day",
@@ -577,8 +645,11 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
   }
 
   const text = (message.text ?? "").trim();
+
   if (!text.startsWith("/")) {
-    const { text: body, keyboard } = await renderAction("home");
+    // A tapped menu button arrives here as ordinary text.
+    const tapped = actionForText(text);
+    const { text: body, keyboard } = await renderAction(tapped ?? "home");
     await sendMessage(chatId, body, { keyboard });
     return;
   }
@@ -587,6 +658,16 @@ async function handleMessage(message: NonNullable<TelegramUpdate["message"]>) {
   const [rawCommand, ...rest] = text.slice(1).split(/\s+/);
   const command = rawCommand.split("@")[0].toLowerCase();
   const argument = rest.join(" ");
+
+  // /start - and /buttons, for chats that were here before the menu existed -
+  // installs the persistent keyboard. Telegram allows one set of buttons per
+  // message, so the greeting carries it and the report follows behind.
+  if (command === "start" || command === "buttons" || command === "keyboard") {
+    await sendMessage(chatId, WELCOME, { replyKeyboard: MENU_KEYBOARD });
+    const home = await renderAction("home");
+    await sendMessage(chatId, home.text, { keyboard: home.keyboard });
+    return;
+  }
 
   const action = COMMAND_MAP[command];
   if (!action) {
@@ -632,4 +713,5 @@ export const BOT_COMMANDS = [
   { command: "find", description: "One dish across every timeframe" },
   { command: "summary", description: "The full nightly summary, now" },
   { command: "help", description: "What I can show you" },
+  { command: "buttons", description: "Show the button menu again" },
 ];

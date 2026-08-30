@@ -9,7 +9,11 @@ import { RoleNav } from "@/components/shell/role-nav";
 import { Card } from "@/components/ui/primitives";
 import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = { title: "Mobile shop" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("shop") };
+}
 
 /**
  * Placeholder for the second business, kept deliberately honest: it says what

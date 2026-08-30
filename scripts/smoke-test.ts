@@ -56,6 +56,9 @@ const LOCALE = process.env.SMOKE_LOCALE ?? "am";
 function localised(path: string) {
   if (path.startsWith("/api/") || /^\/(am|en)(\/|$)/.test(path)) return path;
   if (path === "/") return path;
+  // Anything with a dot is a file, not a page: /sw.js and
+  // /manifest.webmanifest are served from the root and have no locale.
+  if (/\.[a-z0-9]+($|\?)/i.test(path)) return path;
   return `/${LOCALE}${path}`;
 }
 
@@ -66,6 +69,15 @@ async function get(path: string, cookie?: string) {
   });
   const body = await res.text();
   return { status: res.status, body, headers: res.headers };
+}
+
+/** Response bodies are text here; a non-JSON body means the check fails loudly. */
+function safeJSON(body: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(body) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 async function postJSON(path: string, data: unknown, cookie?: string) {
@@ -196,6 +208,57 @@ async function main() {
   check("cost snapshot stored", dbRows[0]?.total_cost_cents === item.estCostCents * 2,
     `${dbRows[0]?.total_cost_cents}`);
   check("one line stored, not two", dbRows[0]?.lines === 1, `${dbRows[0]?.lines} lines`);
+
+  /* ---------------------------------------------------------- my sales, any phone
+     The point of /api/my-sales is that history is not tied to the device that
+     recorded it. This request carries only the staff cookie and no IndexedDB
+     at all, which is exactly what a freshly-installed second phone looks like. */
+  const [{ business_date: saleDay }] = (await sql`
+    SELECT to_char(business_date, 'YYYY-MM-DD') AS business_date
+    FROM sales WHERE client_id = ${clientId}
+  `) as { business_date: string }[];
+
+  const mine = await get(`/api/my-sales?date=${saleDay}`, staff.cookie);
+  const mineBody = safeJSON(mine.body);
+  const mineSales = ((mineBody?.sales ?? []) as unknown) as {
+    clientId: string;
+    totalCents: number;
+    itemCount: number;
+    status: string;
+    lines: unknown[];
+  }[];
+  check("GET /api/my-sales is 200 for staff", mine.status === 200, `got ${mine.status}`);
+  check(
+    "a sale recorded on one device is visible with an empty local ledger",
+    mineSales.some((r) => r.clientId === clientId),
+    `${mineSales.length} rows for ${saleDay}`,
+  );
+  const mineRow = mineSales.find((r) => r.clientId === clientId);
+  check("the returned row carries the server's total", mineRow?.totalCents === expectedTotal,
+    `${mineRow?.totalCents} vs ${expectedTotal}`);
+  check("the returned row carries its lines", (mineRow?.lines?.length ?? 0) === 1,
+    `${mineRow?.lines?.length} lines`);
+  check("the returned row is marked saved", mineRow?.status === "synced", `${mineRow?.status}`);
+
+  // Scoping: it is "my" sales, not "everyone's". The admin recorded none.
+  const adminSession = await cookieFor("admin");
+  const adminMine = await get(`/api/my-sales?date=${saleDay}`, adminSession.cookie);
+  check(
+    "/api/my-sales does not leak another person's sales",
+    !(((safeJSON(adminMine.body)?.sales ?? []) as unknown) as { clientId: string }[]).some(
+      (r) => r.clientId === clientId,
+    ),
+    adminMine.body.slice(0, 160),
+  );
+
+  const mineBlocked = await get(`/api/my-sales?date=${saleDay}`);
+  check("GET /api/my-sales is 401 when signed out", mineBlocked.status === 401,
+    `got ${mineBlocked.status}`);
+
+  // A junk date must not become a SQL fragment or a 500.
+  const mineJunk = await get("/api/my-sales?date=not-a-date", staff.cookie);
+  check("a malformed date falls back to today rather than failing",
+    mineJunk.status === 200, `got ${mineJunk.status}`);
 
   // A client that lies about the total must not win.
   const liarId = `e2e-liar-${Date.now()}`;
@@ -491,8 +554,11 @@ async function main() {
   check("GET /forgot is public", forgot.status === 200, `got ${forgot.status}`);
 
   const badReset = await get("/reset?token=not-a-real-token-value-at-all");
-  check("a bogus reset link is refused", badReset.status === 200 &&
-    badReset.body.includes("cannot be used"), `got ${badReset.status}`);
+  check(
+    "a bogus reset link is refused",
+    badReset.status === 200 && badReset.body.includes(am.Reset.linkUnusable),
+    `got ${badReset.status}`,
+  );
 
   // Expiry has to be enforced, not just configured.
   const staleToken = await new SignJWT({
@@ -589,6 +655,68 @@ async function main() {
 
   const sw = await get("/sw.js");
   check("service worker is served", sw.status === 200 && sw.body.includes("bm-outbox-sync"));
+
+  /* ---- the offline download ----
+     Saving a page without the chunks it needs is worse than saving nothing:
+     the document loads with no network and then dies on a missing script. */
+  check(
+    "the worker saves each page's build assets, not just its HTML",
+    sw.body.includes("warmAssets") && sw.body.includes("/_next/static/"),
+  );
+  check(
+    "a filtered page falls back to the same route unfiltered rather than a dead end",
+    sw.body.includes("bare.search = \"\""),
+  );
+
+  /* ---- payment methods ---- */
+  const { PAYMENT_METHODS, quickMethods, transferMethods, otherMethods, labelFor } = await import(
+    "../src/lib/payments"
+  );
+  const offeredIds = [...quickMethods(), ...transferMethods(), ...otherMethods()].map((m) => m.id);
+  check(
+    "card and credit are no longer offered",
+    !offeredIds.includes("card") && !offeredIds.includes("credit"),
+    offeredIds.filter((id) => id === "card" || id === "credit").join(", "),
+  );
+  check(
+    "their labels still resolve, so old sales do not read as raw ids",
+    labelFor("card", "am") !== "card" && labelFor("credit", "en") !== "credit",
+  );
+  check(
+    "a queued sale on an old phone is still accepted",
+    PAYMENT_METHODS.some((m) => m.id === "card"),
+  );
+  const quickIds = quickMethods().map((m) => m.id);
+  check(
+    "CBE, Bank of Abyssinia and Telebirr lead the list",
+    quickIds.slice(0, 4).join(",") === "cash,cbe,abyssinia,telebirr",
+    quickIds.join(","),
+  );
+
+  /* ---- the bot's button menu ---- */
+  const botSource = readFileSync("src/lib/telegram/bot.ts", "utf8");
+  check(
+    "the bot offers a persistent button menu",
+    botSource.includes("MENU_KEYBOARD") && botSource.includes("replyKeyboard"),
+  );
+  check(
+    "a tapped button, which arrives as plain text, maps back to an action",
+    botSource.includes("actionForText"),
+  );
+
+  /* ---- screens that cannot work offline say so ---- */
+  for (const page of [
+    "src/app/[locale]/admin/menu/page.tsx",
+    "src/app/[locale]/admin/expenses/page.tsx",
+    "src/app/[locale]/admin/settings/page.tsx",
+    "src/app/[locale]/admin/team/page.tsx",
+    "src/app/[locale]/profile/page.tsx",
+  ]) {
+    check(
+      `${page.split("/").slice(-2)[0]} is guarded for offline`,
+      readFileSync(page, "utf8").includes("NeedsInternet"),
+    );
+  }
 
   /* ---- notification side effects ---- */
   const notifRows = (await sql`

@@ -7,6 +7,7 @@
  * app is already installed (running standalone) this renders nothing.
  */
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { Download, Share, SquarePlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/primitives";
@@ -19,6 +20,7 @@ type BeforeInstallPromptEvent = Event & {
 const DISMISS_KEY = "bm-install-dismissed";
 
 export function InstallHint({ className }: { className?: string }) {
+  const t = useTranslations("Install");
   const [prompt, setPrompt] = React.useState<BeforeInstallPromptEvent | null>(null);
   const [standalone, setStandalone] = React.useState(true);
   const [isIOS, setIsIOS] = React.useState(false);
@@ -59,15 +61,15 @@ export function InstallHint({ className }: { className?: string }) {
     >
       <button
         onClick={dismiss}
-        aria-label="Dismiss"
+        aria-label={t("dismiss")}
         className="absolute top-2.5 right-2.5 rounded-full p-1 text-brand-ink/60 transition hover:bg-black/5"
       >
         <X className="size-4" />
       </button>
 
-      <p className="pr-6 text-[14px] font-semibold text-brand-ink">Add this to your home screen</p>
+      <p className="pr-6 text-[14px] font-semibold text-brand-ink">{t("title")}</p>
       <p className="mt-1 text-[12.5px] leading-relaxed text-brand-ink/85">
-        It opens like a normal app, works without internet, and can send you notifications.
+        {t("body")}
       </p>
 
       {prompt ? (
@@ -83,15 +85,15 @@ export function InstallHint({ className }: { className?: string }) {
             setPrompt(null);
           }}
         >
-          Install
+          {t("install")}
         </Button>
       ) : (
         <p className="mt-3 flex flex-wrap items-center gap-1.5 text-[12.5px] font-medium text-brand-ink">
-          Tap
+          {t("tap")}
           <Share className="size-4" />
-          Share, then
+          {t("shareThen")}
           <SquarePlus className="size-4" />
-          <span>Add to Home Screen</span>
+          <span>{t("addToHome")}</span>
         </p>
       )}
     </div>

@@ -6,6 +6,8 @@ import { countOpenIssues } from "@/lib/notes";
 import { AppHeader } from "@/components/shell/app-header";
 import { BottomNav } from "@/components/shell/bottom-nav";
 import { OfflineWarmer } from "@/components/pwa/offline-warmer";
+import { adminWarmPaths } from "@/lib/offline/warm-paths";
+import { businessDateOf } from "@/lib/dates";
 import { getTranslations } from 'next-intl/server';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -21,12 +23,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     countOpenIssues().catch(() => 0),
   ]);
   const t = await getTranslations('AdminLayout');
+  // The day the range picker anchors to, so the warmed URLs are the ones its
+  // buttons actually link to rather than near misses.
+  const anchorDay = businessDateOf(new Date(), business.timezone, business.dayCutoffHour);
 
   return (
     <div className="min-h-dvh">
-      <OfflineWarmer
-        paths={["/admin", "/admin/analytics", "/admin/log", "/admin/expenses", "/admin/menu", "/notes"]}
-      />
+      {/* Every admin screen, filters included, saved for offline reading. */}
+      <OfflineWarmer paths={adminWarmPaths(anchorDay)} />
       <AppHeader
         title={business.restaurantName}
         subtitle={t('ownerView')}

@@ -8,6 +8,7 @@
  */
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/routing";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Grain } from "@/lib/dates";
@@ -28,6 +29,7 @@ export function RangePicker({
   label: string;
   className?: string;
 }) {
+  const tr = useTranslations("Shell");
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -70,7 +72,7 @@ export function RangePicker({
       <div className="flex items-center gap-2">
         <button
           onClick={() => step(-1)}
-          aria-label="Previous period"
+          aria-label={tr("previousPeriod")}
           className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink-2 transition active:scale-95"
         >
           <ChevronLeft className="size-5" />
@@ -89,7 +91,7 @@ export function RangePicker({
         <button
           onClick={() => step(1)}
           disabled={atLatest}
-          aria-label="Next period"
+          aria-label={tr("nextPeriod")}
           className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink-2 transition active:scale-95 disabled:opacity-35"
         >
           <ChevronRight className="size-5" />

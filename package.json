@@ -15,7 +15,8 @@
     "smoke": "tsx --env-file=.env.local scripts/smoke-test.ts",
     "icons": "node scripts/make-icons.mjs",
     "telegram": "tsx --env-file=.env.local scripts/telegram.ts",
-    "mail:check": "tsx --env-file=.env.local scripts/mail-check.ts"
+    "mail:check": "tsx --env-file=.env.local scripts/mail-check.ts",
+    "i18n:audit": "tsx scripts/i18n-audit.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

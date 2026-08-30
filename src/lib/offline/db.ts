@@ -64,6 +64,11 @@ export type LedgerRecord = {
   lines: LedgerLine[];
   status: "pending" | "synced" | "rejected";
   staffName: string;
+  /**
+   * Who recorded it. Absent on rows written before this field existed, which
+   * readers treat as "mine" rather than hiding history that is probably theirs.
+   */
+  staffId?: string;
   syncedAt?: number;
 };
 

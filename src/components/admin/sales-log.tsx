@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/primitives";
 import { Sheet } from "@/components/ui/overlay";
 import { useToast } from "@/components/ui/toast";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { labelFor } from "@/lib/payments";
 
 export function SalesLog({
@@ -38,6 +38,8 @@ export function SalesLog({
   showDates?: boolean;
 }) {
   const locale = useLocale();
+  const t = useTranslations("SalesLog");
+  const c = useTranslations("Common");
   const { toast } = useToast();
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<"all" | "late" | "void">("all");
@@ -75,7 +77,7 @@ export function SalesLog({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by dish, staff or table..."
+          placeholder={t("search")}
           className="h-11 w-full rounded-full border border-line bg-surface pr-4 pl-10 text-[15px] text-ink placeholder:text-ink-3 focus:border-brand focus:ring-4 focus:ring-brand/12 focus:outline-none"
         />
       </div>
@@ -86,21 +88,17 @@ export function SalesLog({
           onChange={setFilter}
           size="sm"
           options={[
-            { value: "all", label: `All (${sales.length})` },
-            { value: "late", label: `Synced late (${lateCount})` },
-            { value: "void", label: `Cancelled (${voidCount})` },
+            { value: "all", label: t("filterAll", { count: sales.length }) },
+            { value: "late", label: t("filterLate", { count: lateCount }) },
+            { value: "void", label: t("filterVoid", { count: voidCount }) },
           ]}
         />
       ) : null}
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="No orders here"
-          body={
-            sales.length === 0
-              ? "Nothing has been recorded for this period."
-              : "Nothing matches that search."
-          }
+          title={t("noOrders")}
+          body={sales.length === 0 ? t("nothingRecorded") : t("noMatch")}
         />
       ) : (
         <ul className="space-y-2">
@@ -174,16 +172,16 @@ export function SalesLog({
                       <div className="mt-3 space-y-1 border-t border-line pt-2.5 text-[12.5px]">
                         {s.discountCents > 0 ? (
                           <p className="nums flex justify-between text-loss">
-                            <span>Discount</span>
+                            <span>{c("discount")}</span>
                             <span>- {formatMoney(s.discountCents)}</span>
                           </p>
                         ) : null}
                         <p className="nums flex justify-between text-ink-3">
-                          <span>Estimated food cost</span>
+                          <span>{t("estimatedCost")}</span>
                           <span>{formatMoney(s.totalCostCents)}</span>
                         </p>
                         <p className="nums flex justify-between font-semibold text-profit">
-                          <span>Estimated profit on this order</span>
+                          <span>{t("estimatedProfit")}</span>
                           <span>{formatMoney(s.totalCents - s.totalCostCents)}</span>
                         </p>
                       </div>
@@ -197,18 +195,18 @@ export function SalesLog({
                       <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-3">
                         <span className="flex items-center gap-1">
                           <Clock className="size-3" />
-                          recorded {relativeTime(s.soldAt)}
+                          {t("recordedAt", { when: relativeTime(s.soldAt) })}
                         </span>
                         <span className="flex items-center gap-1">
                           <CloudUpload className="size-3" />
-                          reached the database {relativeTime(s.syncedAt)}
+                          {t("reachedDb", { when: relativeTime(s.syncedAt) })}
                         </span>
                       </p>
 
                       {voided ? (
                         <div className="mt-3 rounded-[10px] bg-loss-soft px-2.5 py-2">
                           <p className="text-[12px] font-semibold text-loss">
-                            Cancelled: {s.voidReason}
+                            {t("cancelledWithReason", { reason: s.voidReason ?? "" })}
                           </p>
                           <Button
                             size="sm"
@@ -219,12 +217,12 @@ export function SalesLog({
                               const res = await unvoidSale(s.id);
                               toast(
                                 res.ok
-                                  ? { tone: "success", title: res.message ?? "Restored" }
-                                  : { tone: "error", title: res.error ?? "Could not restore" },
+                                  ? { tone: "success", title: res.message ?? t("restored") }
+                                  : { tone: "error", title: res.error ?? t("couldNotRestore") },
                               );
                             }}
                           >
-                            Put it back in the totals
+                            {t("putBack")}
                           </Button>
                         </div>
                       ) : (
@@ -238,7 +236,7 @@ export function SalesLog({
                             setReason("");
                           }}
                         >
-                          Cancel this order
+                          {t("cancelThis")}
                         </Button>
                       )}
                     </div>
@@ -253,17 +251,20 @@ export function SalesLog({
       <Sheet
         open={Boolean(voiding)}
         onClose={() => setVoiding(null)}
-        title="Cancel this order?"
+        title={t("cancelTitle")}
         subtitle={
           voiding
-            ? `${formatMoney(voiding.totalCents)} recorded by ${voiding.staffName}`
+            ? t("cancelSubtitle", {
+                amount: formatMoney(voiding.totalCents),
+                name: voiding.staffName,
+              })
             : undefined
         }
         size="sm"
         footer={
           <div className="flex gap-2.5">
             <Button variant="secondary" block onClick={() => setVoiding(null)} disabled={busy}>
-              Keep it
+              {t("keepIt")}
             </Button>
             <Button
               variant="danger"
@@ -278,28 +279,27 @@ export function SalesLog({
                 if (res.ok) setVoiding(null);
                 toast(
                   res.ok
-                    ? { tone: "success", title: res.message ?? "Cancelled" }
-                    : { tone: "error", title: res.error ?? "Could not cancel" },
+                    ? { tone: "success", title: res.message ?? t("cancelled") }
+                    : { tone: "error", title: res.error ?? t("couldNotCancel") },
                 );
               }}
             >
-              Cancel order
+              {t("cancelOrder")}
             </Button>
           </div>
         }
       >
         <div className="space-y-3 pt-1 pb-2">
           <p className="text-[13px] leading-relaxed text-ink-2">
-            The order stays in the log with your reason attached, but it stops counting towards
-            revenue and profit. Nothing is deleted.
+            {t("cancelExplain")}
           </p>
-          <Field label="Why?" required>
+          <Field label={t("why")} required>
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={2}
               maxLength={300}
-              placeholder="e.g. entered twice by mistake"
+              placeholder={t("whyPlaceholder")}
               data-autofocus
             />
           </Field>

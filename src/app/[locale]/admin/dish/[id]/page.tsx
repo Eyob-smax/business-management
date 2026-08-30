@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { notFound } from "next/navigation";
 import { Pencil, TrendingDown, TrendingUp } from "lucide-react";
@@ -11,7 +12,11 @@ import { cn } from "@/lib/utils";
 import { Badge, Card, CardHeader, Row } from "@/components/ui/primitives";
 import { ItemTrendChart } from "@/components/charts/charts";
 
-export const metadata: Metadata = { title: "Dish" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("dish") };
+}
 
 /**
  * One dish, across every timeframe.
@@ -22,6 +27,7 @@ export const metadata: Metadata = { title: "Dish" };
  */
 export default async function DishPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await getTranslations("Dish");
 
   const item = await getMenuItemById(id);
   if (!item) notFound();
@@ -51,7 +57,7 @@ export default async function DishPage({ params }: { params: Promise<{ id: strin
     const found = list.find((i) => i.menuItemId === item.id);
     return {
       key: g,
-      label: { day: "Today", week: "This week", month: "This month", year: "This year" }[g],
+      label: { day: t("today"), week: t("thisWeek"), month: t("thisMonth"), year: t("thisYear") }[g],
       qty: found?.qty ?? 0,
       revenueCents: found?.revenueCents ?? 0,
       profitCents: found?.profitCents ?? 0,
@@ -74,9 +80,11 @@ export default async function DishPage({ params }: { params: Promise<{ id: strin
             {item.name}
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[12.5px] text-ink-3">
-            {item.categoryName ?? "No group"} - sold by the {item.unit}
-            {item.isArchived ? <Badge tone="neutral">off the menu</Badge> : null}
-            {!item.isAvailable && !item.isArchived ? <Badge tone="warn">sold out</Badge> : null}
+            {item.categoryName ?? t("noGroup")} - {t("soldByThe", { unit: item.unit })}
+            {item.isArchived ? <Badge tone="neutral">{t("offMenu")}</Badge> : null}
+            {!item.isAvailable && !item.isArchived ? (
+              <Badge tone="warn">{t("soldOut")}</Badge>
+            ) : null}
           </p>
         </div>
         <Link
@@ -84,21 +92,21 @@ export default async function DishPage({ params }: { params: Promise<{ id: strin
           className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[12.5px] font-bold text-ink-2"
         >
           <Pencil className="size-3.5" />
-          Edit
+          {t("edit")}
         </Link>
       </header>
 
       {/* Unit economics */}
       <Card className="p-4">
         <p className="text-[12px] font-bold tracking-[0.05em] text-ink-3 uppercase">
-          Per {item.unit}
+          {t("perUnit", { unit: item.unit })}
         </p>
         <div className="mt-2">
-          <Row label="Customer pays" value={formatMoney(item.priceCents)} />
-          <Row label="Your cost estimate" value={formatMoney(item.estCostCents)} />
+          <Row label={t("customerPays")} value={formatMoney(item.priceCents)} />
+          <Row label={t("costEstimate")} value={formatMoney(item.estCostCents)} />
           <div className="mt-1 border-t border-line pt-1">
             <Row
-              label="You keep"
+              label={t("youKeep")}
               value={`${formatMoney(unitProfit)}  (${unitMargin.toFixed(0)}%)`}
               tone={low ? "loss" : "profit"}
               bold
@@ -108,8 +116,7 @@ export default async function DishPage({ params }: { params: Promise<{ id: strin
         {low ? (
           <p className="mt-2.5 flex items-start gap-2 rounded-[12px] bg-loss-soft px-3 py-2.5 text-[12px] leading-snug text-loss">
             <TrendingDown className="mt-px size-3.5 shrink-0" />
-            Below your {business.lowMarginPct}% target. Either the price is too low or the recipe
-            costs more than it should.
+            {t("belowTarget", { pct: business.lowMarginPct })}
           </p>
         ) : null}
       </Card>
@@ -117,8 +124,8 @@ export default async function DishPage({ params }: { params: Promise<{ id: strin
       {/* Across timeframes */}
       <Card className="pb-4">
         <CardHeader
-          title="How it is doing"
-          subtitle="Ranked against every other dish, by money in"
+          title={t("howDoing")}
+          subtitle={t("howDoingSubtitle")}
         />
         <div className="mt-2 divide-y divide-line px-4">
           {slices.map((s) => (
@@ -127,7 +134,7 @@ export default async function DishPage({ params }: { params: Promise<{ id: strin
                 {s.label}
               </span>
               <span className="nums flex-1 text-[12.5px] text-ink-3">
-                {s.qty > 0 ? `${s.qty} sold` : "none sold"}
+                {s.qty > 0 ? t("qtySold", { count: s.qty }) : t("noneSold")}
               </span>
               <span className="nums w-20 text-right text-[13px] font-bold text-ink">
                 {formatMoney(s.revenueCents, { compact: true })}
@@ -149,11 +156,15 @@ export default async function DishPage({ params }: { params: Promise<{ id: strin
       <Card className="pb-4">
         <CardHeader
           icon={<TrendingUp className="size-4" />}
-          title="Last 30 days"
+          title={t("last30")}
           subtitle={
             soldInTrend > 0
-              ? `${soldInTrend} sold - best day was ${bestDay.day} with ${bestDay.qty}`
-              : "Nothing sold in the last 30 days"
+              ? t("last30Subtitle", {
+                  count: soldInTrend,
+                  day: bestDay.day,
+                  qty: bestDay.qty,
+                })
+              : t("nothingIn30")
           }
         />
         <div className="px-3 pt-3">

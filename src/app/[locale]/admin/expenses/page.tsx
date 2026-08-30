@@ -10,9 +10,14 @@ import { Card, CardHeader } from "@/components/ui/primitives";
 import { RankBar } from "@/components/ui/stat";
 import { RangePicker } from "@/components/admin/range-picker";
 import { ExpenseManager } from "@/components/admin/expense-manager";
+import { NeedsInternet } from "@/components/pwa/needs-internet";
 import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = { title: "Money out" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("moneyOut") };
+}
 
 // Costing labels are now handled in translations.
 
@@ -32,6 +37,7 @@ export default async function ExpensesPage({
     getSummary(range),
   ]);
   const t = await getTranslations('AdminExpenses');
+  const o = await getTranslations('Offline');
 
   const totalAllocated = breakdown.reduce((t, b) => t + b.allocatedCents, 0);
   const peak = Math.max(1, ...breakdown.map((b) => b.allocatedCents));
@@ -45,11 +51,13 @@ export default async function ExpensesPage({
         </p>
       </header>
 
-      <ExpenseManager
-        expenses={expenses}
-        categories={categories}
-        costingMode={business.costingMode}
-      />
+      <NeedsInternet message={o('needsInternetExpenses')}>
+        <ExpenseManager
+          expenses={expenses}
+          categories={categories}
+          costingMode={business.costingMode}
+        />
+      </NeedsInternet>
 
       {/* What it added up to over the selected period */}
       <div className="space-y-3 pt-2">

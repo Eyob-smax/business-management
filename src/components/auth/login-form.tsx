@@ -92,12 +92,12 @@ export function LoginForm() {
             onClick={() => setMode("password")}
             className="text-[12.5px] font-semibold text-brand underline-offset-4 hover:underline"
           >
-            I use a password instead
+            {t("usePasswordInstead")}
           </button>
         </>
       ) : (
         <>
-          <Field label="Your password">
+          <Field label={t("yourPassword")}>
             <Input
               name="code"
               type="password"
@@ -115,7 +115,7 @@ export function LoginForm() {
             onClick={() => setMode("code")}
             className="text-[12.5px] font-semibold text-brand underline-offset-4 hover:underline"
           >
-            I use a 6-digit code instead
+            {t("useCodeInstead")}
           </button>
         </>
       )}
@@ -147,7 +147,7 @@ export function LoginForm() {
           href="/forgot"
           className="block text-[12.5px] font-semibold text-brand underline-offset-4 hover:underline"
         >
-          Forgot your password?
+          {t("forgotPassword")}
         </Link>
         <p className="text-[12.5px] leading-relaxed text-ink-3">
           {t("forgotCodeStart")}

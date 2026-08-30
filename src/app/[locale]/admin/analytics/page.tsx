@@ -26,7 +26,7 @@ import { parseRange, type RangeSearchParams } from "@/lib/range-params";
 import { getBusinessSettings } from "@/lib/settings";
 import { formatMoney } from "@/lib/money";
 import { labelFor } from "@/lib/payments";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Avatar, Card, CardHeader, EmptyState } from "@/components/ui/primitives";
 import { RankBar } from "@/components/ui/stat";
 import { HourlyChart, WeekdayChart } from "@/components/charts/charts";
@@ -35,7 +35,11 @@ import { SummaryCards } from "@/components/admin/summary-cards";
 import { ItemMetricSwitcher } from "@/components/admin/item-metric-switcher";
 import { TimelineCompare } from "@/components/admin/timeline-compare";
 
-export const metadata: Metadata = { title: "Reports" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("reports") };
+}
 
 /** DateRange -> the {from,to} pair getItemPerformanceWindows wants. */
 const pick = (r: { from: string; to: string }) => ({ from: r.from, to: r.to });
@@ -46,6 +50,7 @@ export default async function AnalyticsPage({
   searchParams: Promise<RangeSearchParams>;
 }) {
   const locale = await getLocale();
+  const t = await getTranslations("AdminReports");
   const params = await searchParams;
   const range = parseRange(params);
   const anchor = today();
@@ -60,10 +65,10 @@ export default async function AnalyticsPage({
     getBusinessSettings(),
     getItemPerformanceWindows(
       [
-        { label: "Today", ...pick(rangeFor("day", anchor)) },
-        { label: "This week", ...pick(rangeFor("week", anchor)) },
-        { label: "This month", ...pick(rangeFor("month", anchor)) },
-        { label: "This year", ...pick(rangeFor("year", anchor)) },
+        { label: t("today"), ...pick(rangeFor("day", anchor)) },
+        { label: t("thisWeek"), ...pick(rangeFor("week", anchor)) },
+        { label: t("thisMonth"), ...pick(rangeFor("month", anchor)) },
+        { label: t("thisYear"), ...pick(rangeFor("year", anchor)) },
       ],
       "restaurant",
       12,
@@ -90,9 +95,9 @@ export default async function AnalyticsPage({
     <div className="space-y-5">
       <header className="flex items-start justify-between gap-3 px-1">
         <div>
-          <h1 className="text-[20px] leading-tight font-bold tracking-tight text-ink">Reports</h1>
+          <h1 className="text-[20px] leading-tight font-bold tracking-tight text-ink">{t("pageTitle")}</h1>
           <p className="mt-1 text-[13px] text-ink-3">
-            Compared with the {previous.range.label.toLowerCase()} before it.
+            {t("comparedWith", { label: previous.range.label.toLowerCase() })}
           </p>
         </div>
         <Link
@@ -113,8 +118,8 @@ export default async function AnalyticsPage({
       <Card className="pb-1">
         <CardHeader
           icon={<Trophy className="size-4" />}
-          title="Every dish, ranked"
-          subtitle={`${items.length} dish${items.length === 1 ? "" : "es"} sold in this period`}
+          title={t("everyDish")}
+          subtitle={t("dishesSold", { count: items.length })}
         />
         <div className="pt-3">
           <ItemMetricSwitcher items={items} lowMarginPct={business.lowMarginPct} limit={40} />
@@ -123,7 +128,7 @@ export default async function AnalyticsPage({
 
       {/* Cross-timeframe comparison */}
       <TimelineCompare
-        slices={["Today", "This week", "This month", "This year"].map((label) => ({
+        slices={[t("today"), t("thisWeek"), t("thisMonth"), t("thisYear")].map((label) => ({
           label,
           items: timelines[label] ?? [],
         }))}
@@ -134,8 +139,8 @@ export default async function AnalyticsPage({
         <Card className="pb-4">
           <CardHeader
             icon={<TrendingDown className="size-4" />}
-            title="Thinnest margins"
-            subtitle="Selling well but keeping little - candidates for a price or recipe review"
+            title={t("thinnest")}
+            subtitle={t("thinnestSubtitle")}
           />
           <ul className="mt-2 divide-y divide-line px-4">
             {worst.map((i) => (
@@ -146,7 +151,9 @@ export default async function AnalyticsPage({
                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-ink">
                   {i.name}
                 </span>
-                <span className="nums text-[12.5px] text-ink-3">{i.qty} sold</span>
+                <span className="nums text-[12.5px] text-ink-3">
+                  {t("sold", { count: i.qty })}
+                </span>
                 <span
                   className={`nums w-14 text-right text-[13px] font-bold ${
                     i.marginPct < business.lowMarginPct ? "text-loss" : "text-ink"
@@ -164,8 +171,8 @@ export default async function AnalyticsPage({
       <Card className="pb-4">
         <CardHeader
           icon={<Clock3 className="size-4" />}
-          title="Busiest hours"
-          subtitle="Revenue by hour of the day, across the whole period"
+          title={t("busiest")}
+          subtitle={t("busiestSubtitle")}
         />
         <div className="px-3 pt-3">
           <HourlyChart data={hourly} />
@@ -175,8 +182,8 @@ export default async function AnalyticsPage({
       {range.grain !== "day" ? (
         <Card className="pb-4">
           <CardHeader
-            title="Best days of the week"
-            subtitle="Average takings on each weekday in this period"
+            title={t("bestDays")}
+            subtitle={t("bestDaysSubtitle")}
           />
           <div className="px-3 pt-3">
             <WeekdayChart data={weekday} />
@@ -186,9 +193,9 @@ export default async function AnalyticsPage({
 
       {/* Categories */}
       <Card className="pb-4">
-        <CardHeader icon={<Layers className="size-4" />} title="By group" />
+        <CardHeader icon={<Layers className="size-4" />} title={t("byGroup")} />
         {categoryMix.length === 0 ? (
-          <EmptyState title="Nothing sold yet" className="py-8" />
+          <EmptyState title={t("nothingSoldYet")} className="py-8" />
         ) : (
           <ul className="mt-2 space-y-3 px-4">
             {categoryMix.map((c) => {
@@ -205,8 +212,11 @@ export default async function AnalyticsPage({
                   </div>
                   <RankBar className="mt-1.5" pct={(c.revenueCents / catPeak) * 100} />
                   <p className="nums mt-1 text-[11.5px] text-ink-3">
-                    {c.qty} sold - {formatMoney(c.profitCents, { compact: true })} kept (
-                    {margin.toFixed(0)}%)
+                    {t("keptShare", {
+                      qty: c.qty,
+                      kept: formatMoney(c.profitCents, { compact: true }),
+                      pct: margin.toFixed(0),
+                    })}
                   </p>
                 </li>
               );
@@ -218,7 +228,7 @@ export default async function AnalyticsPage({
       {/* Staff */}
       {staff.length > 0 ? (
         <Card className="pb-3">
-          <CardHeader icon={<Users className="size-4" />} title="By person" />
+          <CardHeader icon={<Users className="size-4" />} title={t("byPerson")} />
           <ul className="mt-1 divide-y divide-line px-4">
             {staff.map((s) => (
               <li key={s.staffId ?? s.name} className="flex items-center gap-3 py-3">
@@ -226,7 +236,11 @@ export default async function AnalyticsPage({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13.5px] font-semibold text-ink">{s.name}</p>
                   <p className="nums text-[11.5px] text-ink-3">
-                    {s.orders} orders - {s.items} items - average {formatMoney(s.avgOrderCents)}
+                    {t("personLine", {
+                      orders: s.orders,
+                      items: s.items,
+                      average: formatMoney(s.avgOrderCents),
+                    })}
                   </p>
                 </div>
                 <p className="nums text-[13.5px] font-bold text-ink">
@@ -241,7 +255,7 @@ export default async function AnalyticsPage({
       {/* Payment mix */}
       {payments.length > 0 ? (
         <Card className="pb-4">
-          <CardHeader icon={<CreditCard className="size-4" />} title="How people paid" />
+          <CardHeader icon={<CreditCard className="size-4" />} title={t("howPaid")} />
           <ul className="mt-2 space-y-2.5 px-4">
             {payments.map((p) => (
               <li key={p.method}>
@@ -268,8 +282,8 @@ export default async function AnalyticsPage({
         <Card className="pb-4">
           <CardHeader
             icon={<Ghost className="size-4" />}
-            title="Nothing sold"
-            subtitle={`${dead.length} item${dead.length === 1 ? "" : "s"} on the menu with no sales in this period`}
+            title={t("nothingSold")}
+            subtitle={t("nothingSoldSubtitle", { count: dead.length })}
           />
           <div className="mt-2 flex flex-wrap gap-1.5 px-4">
             {dead.map((d) => (
@@ -286,8 +300,7 @@ export default async function AnalyticsPage({
       ) : null}
 
       <p className="pb-2 text-center text-[11.5px] leading-relaxed text-ink-3">
-        Per-dish profit uses your cost estimates. Overall profit also includes running costs, and
-        your recorded food spend where you marked it as replacing the estimates.
+        {t("footnote")}
       </p>
     </div>
   );

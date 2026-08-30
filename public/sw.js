@@ -13,7 +13,7 @@
  * with src/lib/offline/db.ts.
  */
 
-const VERSION = "v2";
+const VERSION = "v3";
 const SHELL_CACHE = `bm-shell-${VERSION}`;
 const PAGE_CACHE = `bm-pages-${VERSION}`;
 const ASSET_CACHE = `bm-assets-${VERSION}`;
@@ -66,6 +66,12 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SYNC_NOW") event.waitUntil(drainOutbox("message"));
   if (event.data?.type === "WARM_PAGES") event.waitUntil(warmPages(event.data.urls));
 });
+
+/** Tell every open tab how the download is going. */
+async function broadcast(message) {
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  for (const client of clients) client.postMessage(message);
+}
 
 /* -------------------------------------------------------------------- fetch */
 
@@ -181,6 +187,17 @@ async function handleNavigation(req) {
     const cached = await cache.match(key);
     if (cached && isHtmlResponse(cached)) return cached;
 
+    // Same page, different filter. "/admin/analytics?grain=week" with nothing
+    // saved for that exact query used to be a dead end; the unfiltered copy of
+    // the same route is a real page, and the header already says we are
+    // offline, so the reader knows the numbers are the last ones we had.
+    const bare = new URL(key);
+    if (bare.search) {
+      bare.search = "";
+      const fallback = await cache.match(bare.toString());
+      if (fallback && isHtmlResponse(fallback)) return fallback;
+    }
+
     const shell = await caches.open(SHELL_CACHE);
     return (
       (await shell.match(OFFLINE_URL)) ??
@@ -190,24 +207,76 @@ async function handleNavigation(req) {
 }
 
 /**
- * Fetch and store the pages this person actually uses, so switching tabs
- * offline works even for screens they have not opened yet this session.
- * Triggered by the app once it is online and signed in.
+ * Every reference to a build asset anywhere in a page's HTML.
+ *
+ * Not just <script src> and <link href>: Next names most of its chunks inside
+ * the inline flight payload, so a tag-only scan saves the page and misses the
+ * code that renders it. That combination is worse than saving nothing - the
+ * document loads offline, the chunk 404s, and React dies with "a client-side
+ * exception has occurred" on a blank screen.
  */
+const ASSET_REF = /\/_next\/static\/[^"'\\\s)>]+/g;
+
+/** Save the scripts, styles and fonts a warmed page will ask for. */
+async function warmAssets(html) {
+  const cache = await caches.open(ASSET_CACHE);
+  const refs = new Set(html.match(ASSET_REF) || []);
+
+  for (const ref of refs) {
+    // Build assets are immutable and content-hashed, so one save is forever.
+    if (await cache.match(ref)) continue;
+    try {
+      const res = await fetch(ref, { credentials: "same-origin" });
+      if (res.ok) await cache.put(ref, res);
+    } catch {
+      /* the next warm pass will pick it up */
+    }
+  }
+}
+
+/**
+ * Download the whole app for offline use, in the background.
+ *
+ * Nobody should have to visit a screen while they still have signal in order
+ * to be able to open it later. The app sends the full list of pages its user
+ * can reach - filter variants included, since a query string is part of the
+ * cache key - and this walks it one at a time so a weak connection is not
+ * saturated by a dozen parallel document fetches.
+ */
+let warming = false;
+
 async function warmPages(urls) {
+  const list = (urls || []).filter(Boolean);
+  if (warming || list.length === 0) return;
+  warming = true;
+
   const cache = await caches.open(PAGE_CACHE);
-  await Promise.all(
-    (urls || []).map(async (url) => {
+  let saved = 0;
+
+  try {
+    for (const url of list) {
       try {
-        const res = await fetch(url, { credentials: "same-origin" });
-        if (res.ok && isHtmlResponse(res)) {
-          await cache.put(pageCacheKey(new URL(url, self.location.origin).toString()), res);
-        }
+        const absolute = new URL(url, self.location.origin).toString();
+        const res = await fetch(absolute, { credentials: "same-origin" });
+
+        // A redirect to /login means the session has gone; stop rather than
+        // filling the cache with copies of the sign-in page.
+        if (res.redirected && /\/login(\/|$|\?)/.test(new URL(res.url).pathname + "?")) break;
+        if (!res.ok || !isHtmlResponse(res)) continue;
+
+        const html = await res.clone().text();
+        await cache.put(pageCacheKey(absolute), res);
+        await warmAssets(html);
+        saved += 1;
+        await broadcast({ type: "WARM_PROGRESS", saved, total: list.length });
       } catch {
         /* offline right now - the next warm call will get it */
       }
-    }),
-  );
+    }
+  } finally {
+    warming = false;
+    await broadcast({ type: "WARM_DONE", saved, total: list.length });
+  }
 }
 
 async function cacheFirst(req, cacheName) {

@@ -50,12 +50,15 @@ type Payment = string;
 export function Till({
   initialMenu,
   staffName,
+  staffId,
   timezone,
   dayCutoffHour,
   canRecord,
 }: {
   initialMenu: MenuSnapshot | null;
   staffName: string;
+  /** Stamped onto each ledger row so a shared phone keeps histories apart. */
+  staffId: string;
   /** From business settings, so the device agrees with the server on which
       trading day a late-night sale belongs to. */
   timezone: string;
@@ -178,6 +181,7 @@ export function Till({
         paymentMethod: payment,
         tableLabel: tableLabel.trim() || null,
         customerNote: note.trim() || null,
+        staffId,
         lines: lines.map((l) => ({
           menuItemId: l.menuItemId,
           name: l.name,

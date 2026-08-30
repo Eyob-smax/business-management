@@ -20,13 +20,23 @@ export type PaymentMethod = {
   kind: PaymentKind;
   /** Offered as a one-tap chip on the till instead of behind the bank list. */
   quick?: boolean;
+  /**
+   * Kept for the label lookup but never offered again. Sales recorded before a
+   * method was withdrawn still have to render as words rather than as a raw id,
+   * and a sale queued on a phone that has not updated yet still has to sync.
+   */
+  retired?: boolean;
 };
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
   { id: "cash", en: "Cash", am: "ጥሬ ገንዘብ", kind: "cash", quick: true },
 
-  /* ---- mobile money ---- */
+  /* ---- what the money actually arrives through, in that order ---- */
+  { id: "cbe", en: "Commercial Bank of Ethiopia", am: "የኢትዮጵያ ንግድ ባንክ", kind: "bank", quick: true },
+  { id: "abyssinia", en: "Bank of Abyssinia", am: "የአቢሲኒያ ባንክ", kind: "bank", quick: true },
   { id: "telebirr", en: "Telebirr", am: "ቴሌብር", kind: "wallet", quick: true },
+
+  /* ---- mobile money ---- */
   { id: "mpesa", en: "M-Pesa", am: "ኤም-ፔሳ", kind: "wallet", quick: true },
   { id: "cbe_birr", en: "CBE Birr", am: "ሲቢኢ ብር", kind: "wallet" },
   { id: "amole", en: "Amole", am: "አሞሌ", kind: "wallet" },
@@ -35,10 +45,8 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
   { id: "kacha", en: "Kacha", am: "ካቻ", kind: "wallet" },
 
   /* ---- banks (transfer / POS) ---- */
-  { id: "cbe", en: "Commercial Bank of Ethiopia", am: "የኢትዮጵያ ንግድ ባንክ", kind: "bank" },
   { id: "awash", en: "Awash Bank", am: "አዋሽ ባንክ", kind: "bank" },
   { id: "dashen", en: "Dashen Bank", am: "ዳሽን ባንክ", kind: "bank" },
-  { id: "abyssinia", en: "Bank of Abyssinia", am: "የአቢሲኒያ ባንክ", kind: "bank" },
   { id: "coop_oromia", en: "Cooperative Bank of Oromia", am: "የኦሮሚያ ኅብረት ሥራ ባንክ", kind: "bank" },
   { id: "hibret", en: "Hibret Bank", am: "ኅብረት ባንክ", kind: "bank" },
   { id: "nib", en: "Nib International Bank", am: "ንብ ኢንተርናሽናል ባንክ", kind: "bank" },
@@ -66,9 +74,11 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
   { id: "global", en: "Global Bank Ethiopia", am: "ግሎባል ባንክ ኢትዮጵያ", kind: "bank" },
 
   /* ---- everything else ---- */
-  { id: "card", en: "Card", am: "ካርድ", kind: "card", quick: true },
-  { id: "credit", en: "Credit (pay later)", am: "ዕዳ (በኋላ ይከፍላል)", kind: "credit", quick: true },
   { id: "other", en: "Other", am: "ሌላ", kind: "other" },
+
+  /* ---- withdrawn: never offered again, still readable on old sales ---- */
+  { id: "card", en: "Card", am: "ካርድ", kind: "card", retired: true },
+  { id: "credit", en: "Credit (pay later)", am: "ዕዳ (በኋላ ይከፍላል)", kind: "credit", retired: true },
 ];
 
 export const PAYMENT_IDS = PAYMENT_METHODS.map((m) => m.id);
@@ -87,11 +97,14 @@ export function labelFor(id: string, locale = "en"): string {
 
 export const paymentKind = (id: string): PaymentKind => BY_ID.get(id)?.kind ?? "other";
 
-export const quickMethods = () => PAYMENT_METHODS.filter((m) => m.quick);
+/** Everything still on offer, in catalog order. */
+const offered = () => PAYMENT_METHODS.filter((m) => !m.retired);
+
+export const quickMethods = () => offered().filter((m) => m.quick);
 
 /** Banks and wallets, for the "more ways to pay" list. */
 export const transferMethods = () =>
-  PAYMENT_METHODS.filter((m) => !m.quick && (m.kind === "bank" || m.kind === "wallet"));
+  offered().filter((m) => !m.quick && (m.kind === "bank" || m.kind === "wallet"));
 
 export const otherMethods = () =>
-  PAYMENT_METHODS.filter((m) => !m.quick && m.kind !== "bank" && m.kind !== "wallet");
+  offered().filter((m) => !m.quick && m.kind !== "bank" && m.kind !== "wallet");

@@ -16,6 +16,7 @@
  */
 import * as React from "react";
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import {
   Bell,
@@ -59,6 +60,18 @@ import { useToast } from "@/components/ui/toast";
 
 import { AVATAR_CHOICES as AVATARS } from "@/components/auth/profile-form";
 
+/**
+ * lib/access.ts owns the policy; the words for each level live in the catalog
+ * so they can be read in Amharic. Keyed by level id, not by English label.
+ */
+function useAccessWords() {
+  const t = useTranslations("Access");
+  return {
+    label: (level: AccessLevel) => t(`${level}.label` as never),
+    description: (level: AccessLevel) => t(`${level}.description` as never),
+  };
+}
+
 const ACCESS_ICON: Record<AccessLevel, React.ReactNode> = {
   full: <Unlock className="size-4" />,
   read_only: <Eye className="size-4" />,
@@ -72,6 +85,8 @@ export function TeamManager({
   members: TeamMember[];
   currentUserId: string;
 }) {
+  const t = useTranslations("AdminTeam");
+  const { label: accessLabel, description: accessDescription } = useAccessWords();
   const [editing, setEditing] = React.useState<TeamMember | "new" | null>(null);
   const [codeFor, setCodeFor] = React.useState<TeamMember | null>(null);
   const [accessFor, setAccessFor] = React.useState<TeamMember | null>(null);
@@ -88,7 +103,7 @@ export function TeamManager({
         icon={<Plus className="size-4" />}
         onClick={() => setEditing("new")}
       >
-        Add somebody
+        {t("addSomebody")}
       </Button>
 
       <Card className="divide-y divide-line">
@@ -108,14 +123,16 @@ export function TeamManager({
                     {m.role === "admin" ? (
                       <Badge tone="brand">
                         <ShieldCheck className="size-3" />
-                        admin
+                        {t("adminBadge")}
                       </Badge>
                     ) : (
-                      <Badge tone="neutral">staff</Badge>
+                      <Badge tone="neutral">{t("staffBadge")}</Badge>
                     )}
-                    {m.id === currentUserId ? <Badge tone="info">you</Badge> : null}
-                    <Badge tone={spec.tone}>{spec.label}</Badge>
-                    {m.mustChangePassword ? <Badge tone="warn">code not changed</Badge> : null}
+                    {m.id === currentUserId ? <Badge tone="info">{t("youBadge")}</Badge> : null}
+                    <Badge tone={spec.tone}>{accessLabel(m.accessLevel)}</Badge>
+                    {m.mustChangePassword ? (
+                      <Badge tone="warn">{t("codeNotChanged")}</Badge>
+                    ) : null}
                     {m.devices > 0 ? (
                       <Badge tone="profit">
                         <Bell className="size-3" />
@@ -125,28 +142,28 @@ export function TeamManager({
                   </p>
 
                   <p className="nums mt-1 text-[12px] text-ink-3">
-                    {m.orders30} order{m.orders30 === 1 ? "" : "s"} in 30 days
+                    {t("ordersIn30", { count: m.orders30 })}
                     {m.orders30 > 0
                       ? ` - ${formatMoney(m.revenue30Cents, { compact: true })}`
                       : ""}
-                    {m.ordersTotal > 0 ? ` - ${m.ordersTotal} all time` : ""}
+                    {m.ordersTotal > 0 ? t("allTime", { count: m.ordersTotal }) : ""}
                   </p>
                   <p className="mt-0.5 text-[11.5px] text-ink-3">
                     {m.lastSeenAt
-                      ? `Last signed in ${relativeTime(m.lastSeenAt)}`
-                      : "Never signed in"}
+                      ? t("lastSignedIn", { when: relativeTime(m.lastSeenAt) })
+                      : t("neverSignedIn")}
                   </p>
                 </div>
 
                 <div className="flex shrink-0 flex-col gap-0.5">
-                  <IconButton label={`Edit ${m.name}`} onClick={() => setEditing(m)}>
+                  <IconButton label={t("editMember", { name: m.name })} onClick={() => setEditing(m)}>
                     <Pencil className="size-4" />
                   </IconButton>
-                  <IconButton label={`Reset code for ${m.name}`} onClick={() => setCodeFor(m)}>
+                  <IconButton label={t("resetCodeFor", { name: m.name })} onClick={() => setCodeFor(m)}>
                     <KeyRound className="size-4" />
                   </IconButton>
                   <IconButton
-                    label={`Access for ${m.name}`}
+                    label={t("accessFor", { name: m.name })}
                     onClick={() => setAccessFor(m)}
                     className={
                       m.accessLevel === "full"
@@ -168,22 +185,21 @@ export function TeamManager({
       <Card className="p-4">
         <p className="flex items-center gap-2 text-[13px] font-bold text-ink">
           <Users className="size-4 text-ink-3" />
-          How access works
+          {t("howAccessWorks")}
         </p>
         <ul className="mt-2.5 space-y-2 text-[12.5px] leading-relaxed text-ink-2">
           {ACCESS_LEVELS.map((level) => (
             <li key={level} className="flex gap-2">
               <span className="mt-0.5 shrink-0 text-ink-3">{ACCESS_ICON[level]}</span>
               <span>
-                <strong className="text-ink">{ACCESS[level].label}</strong> -{" "}
-                {ACCESS[level].description}
+                <strong className="text-ink">{accessLabel(level)}</strong> -{" "}
+                {accessDescription(level)}
               </span>
             </li>
           ))}
         </ul>
         <p className="mt-3 border-t border-line pt-3 text-[12.5px] leading-relaxed text-ink-3">
-          A change applies the next time that phone does anything - it does not wait for them to
-          sign out. Anything they already recorded is always kept and still syncs.
+          {t("accessFootnote")}
         </p>
       </Card>
 
@@ -232,6 +248,8 @@ function AccessSheet({
   isLastFullAdmin: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("AdminTeam");
+  const { label: accessLabel, description: accessDescription } = useAccessWords();
   const { toast } = useToast();
   const router = useRouter();
   const [busy, setBusy] = React.useState<AccessLevel | null>(null);
@@ -247,8 +265,8 @@ function AccessSheet({
     setBusy(null);
     toast(
       res.ok
-        ? { tone: "success", title: res.message ?? "Access updated" }
-        : { tone: "error", title: res.error ?? "Could not change access" },
+        ? { tone: "success", title: res.message ?? t("accessUpdated") }
+        : { tone: "error", title: res.error ?? t("couldNotChangeAccess") },
     );
     if (res.ok) {
       router.refresh();
@@ -261,16 +279,16 @@ function AccessSheet({
       <Sheet
         open
         onClose={onClose}
-        title={`What can ${member.name} do?`}
-        subtitle="Takes effect immediately, on every device they use."
+        title={t("whatCanTheyDo", { name: member.name })}
+        subtitle={t("accessSubtitle")}
         size="md"
       >
         <div className="space-y-4 pt-1 pb-2">
           {locked ? (
             <p className="rounded-[12px] bg-warn-soft px-3 py-2.5 text-[12.5px] leading-relaxed text-warn">
               {isSelf
-                ? "This is your own account. Ask the other admin to change your access - the app will not let you lock yourself out."
-                : "This is the last admin with full access. Give somebody else full admin access first, otherwise nobody could get back in."}
+                ? t("selfLocked")
+                : t("lastAdminLocked")}
             </p>
           ) : null}
 
@@ -299,12 +317,12 @@ function AccessSheet({
                         current ? "border-brand bg-brand" : "border-line-strong",
                       )}
                     />
-                    {spec.label}
-                    {current ? <Badge tone="brand">now</Badge> : null}
-                    {busy === level ? <Badge tone="info">saving</Badge> : null}
+                    {accessLabel(level)}
+                    {current ? <Badge tone="brand">{t("now")}</Badge> : null}
+                    {busy === level ? <Badge tone="info">{t("saving")}</Badge> : null}
                   </p>
                   <p className="mt-1.5 pl-6 text-[12.5px] leading-relaxed text-ink-2">
-                    {spec.description}
+                    {accessDescription(level)}
                   </p>
                 </button>
               );
@@ -313,22 +331,12 @@ function AccessSheet({
 
           <div className="border-t border-line pt-4">
             <p className="text-[12px] font-bold tracking-[0.05em] text-ink-3 uppercase">
-              Remove for good
+              {t("removeForGood")}
             </p>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">
-              Deleting the account cannot be undone. Their orders are kept, but{" "}
-              {member.ordersTotal > 0 ? (
-                <>
-                  <strong className="text-ink">
-                    {member.ordersTotal} past order{member.ordersTotal === 1 ? "" : "s"}
-                  </strong>{" "}
-                  would stop showing their name.
-                </>
-              ) : (
-                "they would no longer appear anywhere."
-              )}{" "}
-              Choosing <strong className="text-ink">No access</strong> above keeps the name on the
-              history and is almost always the better choice.
+              {member.ordersTotal > 0
+                ? t("deleteNoteWithOrders", { count: member.ordersTotal })
+                : t("deleteNoteNoOrders")}
             </p>
             <Button
               variant="ghost"
@@ -337,7 +345,7 @@ function AccessSheet({
               disabled={isSelf || isLastFullAdmin}
               onClick={() => setConfirmDelete(true)}
             >
-              Delete {member.name} permanently
+              {t("deletePermanently", { name: member.name })}
             </Button>
           </div>
         </div>
@@ -346,13 +354,13 @@ function AccessSheet({
       <ConfirmDialog
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        title={`Delete ${member.name}?`}
+        title={t("deleteTitle", { name: member.name })}
         body={
           member.ordersTotal > 0
-            ? `This cannot be undone. ${member.ordersTotal} past order${member.ordersTotal === 1 ? "" : "s"} will stay in your records but will no longer show who recorded ${member.ordersTotal === 1 ? "it" : "them"}.`
-            : "This cannot be undone."
+            ? t("deleteBodyWithOrders", { count: member.ordersTotal })
+            : t("deleteBodyNoOrders")
         }
-        confirmLabel="Delete permanently"
+        confirmLabel={t("deleteConfirm")}
         destructive
         loading={deleting}
         onConfirm={async () => {
@@ -362,8 +370,8 @@ function AccessSheet({
           setConfirmDelete(false);
           toast(
             res.ok
-              ? { tone: "success", title: res.message ?? "Deleted" }
-              : { tone: "error", title: res.error ?? "Could not delete" },
+              ? { tone: "success", title: res.message ?? t("deleted") }
+              : { tone: "error", title: res.error ?? t("couldNotDelete") },
           );
           if (res.ok) {
             router.refresh();
@@ -386,6 +394,8 @@ function MemberSheet({
   onClose: () => void;
   onRevealCode: (name: string, code: string) => void;
 }) {
+  const t = useTranslations("AdminTeam");
+  const c = useTranslations("Common");
   const { toast } = useToast();
   const router = useRouter();
   const [state, action, pending] = useActionState<UserActionResult | null, FormData>(
@@ -402,12 +412,12 @@ function MemberSheet({
   React.useEffect(() => {
     if (!state) return;
     if (state.ok) {
-      toast({ tone: "success", title: state.message ?? "Saved" });
+      toast({ tone: "success", title: state.message ?? c("save") });
       if (state.code && state.name) onRevealCode(state.name, state.code);
       router.refresh();
       onClose();
     } else {
-      toast({ tone: "error", title: state.error ?? "Could not save" });
+      toast({ tone: "error", title: state.error ?? c("couldNotSave") });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -416,8 +426,8 @@ function MemberSheet({
     <Sheet
       open
       onClose={onClose}
-      title={member ? `Edit ${member.name}` : "Add somebody"}
-      subtitle={member ? undefined : "They get a 6-digit code you can give them."}
+      title={member ? t("editMember", { name: member.name }) : t("addTitle")}
+      subtitle={member ? undefined : t("addSubtitle")}
       size="sm"
     >
       <form action={action} className="space-y-4 pt-1 pb-2">
@@ -425,11 +435,11 @@ function MemberSheet({
         <input type="hidden" name="avatar" value={avatar} />
         <input type="hidden" name="role" value={role} />
 
-        <Field label="Name" required hint="This is what they type to sign in.">
+        <Field label={t("name")} required hint={t("nameHint")}>
           <Input
             name="name"
             defaultValue={member?.name ?? ""}
-            placeholder="e.g. Aster"
+            placeholder={t("namePlaceholder")}
             required
             maxLength={40}
             data-autofocus
@@ -438,35 +448,33 @@ function MemberSheet({
 
         <div>
           <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">
-            What can they do?
+            {t("capability")}
           </span>
           {canChangeRole ? (
             <Segmented<"admin" | "staff">
               value={role}
               onChange={setRole}
               options={[
-                { value: "staff", label: "Record sales" },
-                { value: "admin", label: "See everything" },
+                { value: "staff", label: t("recordSales") },
+                { value: "admin", label: t("seeEverything") },
               ]}
             />
           ) : (
             <p className="rounded-[12px] bg-surface-2 px-3 py-2.5 text-[12.5px] leading-relaxed text-ink-2">
-              They will be able to record sales on the till and see their own shift. They never
-              see costs, profit, or anybody else&rsquo;s numbers. You can make somebody an admin
-              later by editing their account.
+              {t("newStaffNote")}
             </p>
           )}
           {canChangeRole ? (
             <p className="mt-1.5 text-[12px] leading-snug text-ink-3">
               {role === "staff"
-                ? "The till and their own sales. They never see costs, profit or other people's numbers."
-                : "Full access: reports, expenses, menu, team, and notifications."}
+                ? t("staffCapability")
+                : t("adminCapability")}
             </p>
           ) : null}
         </div>
 
         <div>
-          <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">Picture</span>
+          <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">{t("picture")}</span>
           <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
             {AVATARS.map((a) => (
               <button
@@ -487,10 +495,10 @@ function MemberSheet({
 
         <div className="flex gap-2.5">
           <Button type="button" variant="secondary" block onClick={onClose} disabled={pending}>
-            Cancel
+            {c("cancel")}
           </Button>
           <Button type="submit" variant="primary" block loading={pending}>
-            {member ? "Save" : "Create account"}
+            {member ? c("save") : t("createAccount")}
           </Button>
         </div>
       </form>
@@ -509,6 +517,8 @@ function CodeSheet({
   onClose: () => void;
   onRevealCode: (name: string, code: string) => void;
 }) {
+  const t = useTranslations("AdminTeam");
+  const c = useTranslations("Common");
   const { toast } = useToast();
   const router = useRouter();
   const [mode, setMode] = React.useState<"random" | "choose">("random");
@@ -519,13 +529,13 @@ function CodeSheet({
     <Sheet
       open
       onClose={onClose}
-      title={`New code for ${member.name}`}
-      subtitle="They will be asked to change it when they sign in."
+      title={t("newCodeFor", { name: member.name })}
+      subtitle={t("codeSubtitle")}
       size="sm"
       footer={
         <div className="flex gap-2.5">
           <Button variant="secondary" block onClick={onClose} disabled={busy}>
-            Cancel
+            {c("cancel")}
           </Button>
           <Button
             variant="primary"
@@ -547,12 +557,12 @@ function CodeSheet({
               }
               toast(
                 res.ok
-                  ? { tone: "success", title: res.message ?? "Done" }
-                  : { tone: "error", title: res.error ?? "Could not set the code" },
+                  ? { tone: "success", title: res.message ?? t("done") }
+                  : { tone: "error", title: res.error ?? t("couldNotSetCode") },
               );
             }}
           >
-            Set code
+            {t("setCode")}
           </Button>
         </div>
       }
@@ -562,22 +572,22 @@ function CodeSheet({
           value={mode}
           onChange={setMode}
           options={[
-            { value: "random", label: "Generate one" },
-            { value: "choose", label: "Type one" },
+            { value: "random", label: t("generateOne") },
+            { value: "choose", label: t("typeOne") },
           ]}
         />
 
         {mode === "choose" ? (
           <CodeInput
             name="code"
-            label="New 6-digit code"
+            label={t("newSixDigit")}
             value={code}
             onChange={setCode}
             autoFocus
           />
         ) : (
           <p className="text-[13px] leading-relaxed text-ink-2">
-            A random 6-digit code will be generated and shown to you once.
+            {t("randomNote")}
           </p>
         )}
       </div>
@@ -592,19 +602,20 @@ function RevealCodeDialog({
   reveal: { name: string; code: string } | null;
   onClose: () => void;
 }) {
+  const t = useTranslations("AdminTeam");
   const { toast } = useToast();
 
   return (
     <Sheet
       open={Boolean(reveal)}
       onClose={onClose}
-      title="Write this down"
-      subtitle={reveal ? `${reveal.name} needs this code to sign in` : undefined}
+      title={t("writeThisDown")}
+      subtitle={reveal ? t("needsThisCode", { name: reveal.name }) : undefined}
       size="sm"
       dismissable={false}
       footer={
         <Button variant="primary" block onClick={onClose}>
-          I have written it down
+          {t("writtenItDown")}
         </Button>
       }
     >
@@ -622,18 +633,17 @@ function RevealCodeDialog({
           onClick={async () => {
             try {
               await navigator.clipboard.writeText(reveal?.code ?? "");
-              toast({ tone: "success", title: "Copied" });
+              toast({ tone: "success", title: t("copied") });
             } catch {
-              toast({ tone: "error", title: "Could not copy - please write it down" });
+              toast({ tone: "error", title: t("couldNotCopy") });
             }
           }}
         >
-          Copy
+          {t("copy")}
         </Button>
 
         <p className="text-center text-[12px] leading-relaxed text-ink-3">
-          This code is not stored anywhere you can read it again. If it gets lost, generate a new
-          one.
+          {t("codeNotStored")}
         </p>
       </div>
     </Sheet>

@@ -9,7 +9,11 @@ import { PurgePrivateCache } from "@/components/pwa/purge-cache";
 import { LanguageSwitcher } from "@/components/ui/language-switcher";
 import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = { title: "Sign in" };
+/** The browser tab, in the reader's own language. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Meta");
+  return { title: t("login") };
+}
 
 export default async function LoginPage({
   searchParams,
@@ -54,7 +58,7 @@ export default async function LoginPage({
           <div className="mb-4 flex items-start gap-2.5 rounded-[var(--radius-card)] border border-profit/30 bg-profit-soft p-4">
             <CircleCheck className="mt-px size-4 shrink-0 text-profit" />
             <p className="text-[13px] leading-relaxed font-medium text-profit">
-              Your password has been changed. Sign in with your name and the new password.
+              {t('passwordChanged')}
             </p>
           </div>
         ) : null}

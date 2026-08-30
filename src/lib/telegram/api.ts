@@ -47,9 +47,31 @@ export type InlineButton = { text: string; callback_data: string };
 export type SendOptions = {
   /** Rows of buttons shown under the message. */
   keyboard?: InlineButton[][];
+  /**
+   * Rows of plain-text buttons that replace the phone keyboard and stay put
+   * between messages. Telegram allows one reply_markup per message, so this
+   * wins over `keyboard` when both are given.
+   */
+  replyKeyboard?: string[][];
   disablePreview?: boolean;
   silent?: boolean;
 };
+
+/** The reply_markup for whichever kind of buttons this message carries. */
+function markupFor(options: SendOptions): Record<string, unknown> | null {
+  if (options.replyKeyboard) {
+    return {
+      reply_markup: {
+        keyboard: options.replyKeyboard.map((row) => row.map((text) => ({ text }))),
+        resize_keyboard: true,
+        is_persistent: true,
+        input_field_placeholder: "Tap a button or type /help",
+      },
+    };
+  }
+  if (options.keyboard) return { reply_markup: { inline_keyboard: options.keyboard } };
+  return null;
+}
 
 /**
  * Telegram rejects messages over 4096 characters, so long reports are split on
@@ -88,9 +110,7 @@ export async function sendMessage(
       link_preview_options: { is_disabled: options.disablePreview ?? true },
       disable_notification: options.silent ?? false,
       // Buttons belong on the final part only.
-      ...(isLast && options.keyboard
-        ? { reply_markup: { inline_keyboard: options.keyboard } }
-        : {}),
+      ...(isLast ? (markupFor(options) ?? {}) : {}),
     });
 
     if (!res.ok) return { ok: false, error: res.description ?? "send failed" };
@@ -115,6 +135,8 @@ export async function editMessage(
     text: html,
     parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
+    // An edit can only carry inline buttons; a reply keyboard is not part of
+    // the message, so it stays where it is regardless.
     ...(options.keyboard ? { reply_markup: { inline_keyboard: options.keyboard } } : {}),
   });
 
