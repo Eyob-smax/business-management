@@ -1,0 +1,264 @@
+@import "tailwindcss";
+
+/* Manual theme control: `.dark` on <html> wins over the OS preference, so the
+   in-app toggle works both directions. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------- tokens */
+
+@theme {
+  /* Warm neutrals - a food business should not feel like a bank terminal. */
+  --color-canvas: #faf7f2;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f0e9;
+  --color-line: #e7e0d5;
+  --color-line-strong: #d6cdbe;
+
+  --color-ink: #1c1917;
+  --color-ink-2: #57534e;
+  --color-ink-3: #8c857c;
+
+  --color-brand: #d97706;
+  --color-brand-strong: #b45309;
+  --color-brand-soft: #fef3e2;
+  --color-brand-ink: #7c3d06;
+
+  --color-profit: #047857;
+  --color-profit-soft: #e7f5ef;
+  --color-loss: #be123c;
+  --color-loss-soft: #fdeaee;
+  --color-info: #1d4ed8;
+  --color-info-soft: #e8eefc;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf3e3;
+
+  /* Chart series. Validated with the dataviz palette validator against both
+     surfaces: adjacent-pair CVD dE 9.2 light / 9.4 dark, normal-vision 24.0 /
+     20.9. Light-mode cost+profit sit just under 3:1 contrast, so every chart
+     using them also carries a legend, direct labels and a numeric table. */
+  --color-viz-revenue: #2a78d6;
+  --color-viz-cost: #eb6834;
+  --color-viz-profit: #1baf7a;
+  --color-viz-grid: #eae4d9;
+  --color-viz-axis: #b9b0a2;
+
+  --radius-card: 1.15rem;
+  --radius-tile: 1rem;
+  --radius-control: 0.75rem;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --shadow-tile: 0 1px 2px rgb(28 25 23 / 0.05), 0 1px 3px rgb(28 25 23 / 0.04);
+  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04), 0 8px 24px -12px rgb(28 25 23 / 0.14);
+  --shadow-lift: 0 2px 4px rgb(28 25 23 / 0.06), 0 18px 40px -16px rgb(28 25 23 / 0.28);
+
+  --animate-in: pop 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.dark {
+  --color-canvas: #14120f;
+  --color-surface: #1e1b17;
+  --color-surface-2: #272319;
+  --color-line: #34302a;
+  --color-line-strong: #47413a;
+
+  --color-ink: #f7f4ef;
+  --color-ink-2: #b9b2a8;
+  --color-ink-3: #8b847a;
+
+  --color-brand: #f5a623;
+  --color-brand-strong: #ffbb4d;
+  --color-brand-soft: #33260f;
+  --color-brand-ink: #ffd08a;
+
+  --color-profit: #34d399;
+  --color-profit-soft: #102a21;
+  --color-loss: #fb7185;
+  --color-loss-soft: #331419;
+  --color-info: #7ea6ff;
+  --color-info-soft: #14203a;
+  --color-warn: #fbbf24;
+  --color-warn-soft: #2e2410;
+
+  /* Dark steps are chosen for the dark surface, not flipped from light. */
+  --color-viz-revenue: #3987e5;
+  --color-viz-cost: #d95926;
+  --color-viz-profit: #199e70;
+  --color-viz-grid: #302b24;
+  --color-viz-axis: #6b6459;
+
+  --shadow-tile: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.5), 0 20px 44px -18px rgb(0 0 0 / 0.8);
+}
+
+/* ------------------------------------------------------------------ base */
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Standalone PWA: never bounce the whole page, panes scroll instead. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Tabular numbers everywhere money is shown - columns must line up. */
+  .nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  button,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
+  ::selection {
+    background: var(--color-brand-soft);
+    color: var(--color-brand-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+    font-size: 16px; /* stops iOS Safari zooming on focus */
+  }
+
+  /* Hide scrollbars on the horizontal chip rails, keep the scrolling. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Respect the notch / home indicator when installed. */
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* ------------------------------------------------------------ animations */
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.animate-pop {
+  animation: var(--animate-in);
+}
+.animate-sheet {
+  animation: slide-up 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.animate-fade {
+  animation: fade-in 0.2s ease-out;
+}
+.animate-ring {
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-2);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--color-surface) 70%, transparent),
+    transparent
+  );
+  animation: shimmer 1.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Recharts inherits our type instead of its own defaults. */
+.recharts-wrapper text {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.recharts-cartesian-axis-tick-value {
+  fill: var(--color-ink-3);
+  font-size: 11px;
+}
+.recharts-surface {
+  overflow: visible;
+}

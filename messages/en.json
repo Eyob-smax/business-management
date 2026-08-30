@@ -1,0 +1,80 @@
+{
+  "LoginPage": {
+    "title": "Business Manager",
+    "subtitle": "Sign in to record sales and see how the day is going.",
+    "accountSwitchedOff": "This account is switched off",
+    "accountSwitchedOffDescription": "An admin has removed access for this account. Any sales it already recorded are safe. Ask an admin to turn it back on.",
+    "yourName": "Your name",
+    "namePlaceholder": "e.g. Aster",
+    "yourCode": "Your 6-digit code",
+    "signingIn": "Signing in",
+    "signIn": "Sign in",
+    "forgotCodeStart": "Forgot your code? Ask an admin to reset it for you from ",
+    "forgotCodeTeam": "Team",
+    "forgotCodeEnd": " in the admin menu."
+  },
+  "AdminLayout": {
+    "ownerView": "Owner view",
+    "home": "Home",
+    "reports": "Reports",
+    "dayLog": "Day log",
+    "money": "Money",
+    "menu": "Menu"
+  },
+  "AdminHome": {
+    "title": "Home",
+    "bestSellers": "Best sellers",
+    "topDishes": "Top dishes for {label}",
+    "allReports": "All reports",
+    "whoRecorded": "Who recorded the sales",
+    "orders": "{count, plural, =1 {order} other {orders}}",
+    "average": "average",
+    "latestNotes": "Latest notes",
+    "open": "Open",
+    "noNotes": "No notes yet. Staff can leave a message about the day, and you will get a notification.",
+    "recordExpense": "Record expense",
+    "addDish": "Add a dish"
+  },
+  "AdminMenu": {
+    "title": "Menu & prices",
+    "description": "Set what you charge and roughly what each plate costs you. Those two numbers are what turn sales into profit figures."
+  },
+  "AdminExpenses": {
+    "title": "Money out",
+    "description": "Everything you spend, and how it lands on each day's profit.",
+    "costingAuto": "Estimates, overridden where you recorded real food cost",
+    "costingItem": "Per-plate estimates only",
+    "costingPeriod": "Recorded expenses only",
+    "spentIn": "Spent in {label}",
+    "spentSubtitle": "{allocated} of expenses, plus {estimated} of estimated food cost",
+    "noExpenses": "No expenses touched this period yet.",
+    "replacesEstimates": "(replaces estimates)",
+    "howProfitCalculated": "How profit is calculated",
+    "changeInSettings": "Change this in Settings"
+  },
+  "StaffLayout": {
+    "signedInAs": "Signed in as {name}",
+    "sell": "Sell",
+    "mySales": "My sales",
+    "notes": "Notes"
+  },
+  "OfflinePage": {
+    "title": "This page needs internet",
+    "description": "You have not opened this screen on this phone before, so there is no saved copy of it yet.",
+    "footer": "Anything you already recorded is safe on this phone and will be sent on its own as soon as there is a signal."
+  },
+  "ShopPage": {
+    "subtitle": "Not set up yet",
+    "isNext": "{shopName} is next",
+    "isNextDesc": "The restaurant side is finished and in use. The shop needs a few things the restaurant does not, so it is being built second rather than half-built now.",
+    "whatItWillAdd": "What it will add",
+    "stock": "Stock that counts down",
+    "stockDesc": "Phones and accessories are individual pieces, not plates you can cook again. Selling one has to reduce what is left, and warn you before you run out.",
+    "cost": "Cost per piece, not per recipe",
+    "costDesc": "Profit comes from what you paid the supplier for that exact item, so each piece carries its own buying price rather than an estimate.",
+    "repairs": "Repairs and IMEI",
+    "repairsDesc": "Repair jobs, deposits taken, and serial numbers for warranty questions.",
+    "sharedDesc": "Everything already built is shared: sign-in, offline recording, sync, notifications, notes and the reporting engine all understand a second business. Adding the shop is new screens, not a new app.",
+    "back": "Back to the restaurant"
+  }
+}
