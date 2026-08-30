@@ -58,7 +58,8 @@ npm run seed -- --wipe-demo    # removes only the sample data
 | `TELEGRAM_OWNER_CHAT_ID` | The owner. Always allowed. |
 | `TELEGRAM_ALLOWED_CHAT_IDS` | Anyone else allowed to use the bot. **This is the security boundary.** |
 | `TELEGRAM_DIGEST_CHAT_IDS` | Who gets the nightly summary. Blank = everyone allowed. |
-| `RESEND_API_KEY` / `DIGEST_EMAIL_FROM` | Optional email delivery. |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | Outgoing email over SMTP (nodemailer). Needed for password resets. |
+| `MAIL_FROM` | What recipients see as the sender. Defaults to `SMTP_USER`. |
 
 `src/db/index.ts` throws if it is ever loaded in a browser, and every module that
 reads the database imports `server-only`, so a mistake fails the build instead of
@@ -166,13 +167,41 @@ best-selling dishes, busiest hour, who was working, and any problems staff
 flagged that are still open.
 
 Channels are Telegram (primary) and a phone notification to admins (free, no
-setup). Email via Resend's free tier is optional if you want a searchable
-written record.
+setup). Email over SMTP is optional if you want a searchable written record.
 
 > **SMS was removed on purpose.** No provider offers a free tier to Ethiopian
 > numbers — every one is trial credit and then per-message billing, because
 > Ethio Telecom charges for termination. Telegram does the same job for
 > nothing, and answers questions on top.
+
+### Email
+
+Email is used for password reset links, and optionally for the nightly summary.
+It goes over SMTP through nodemailer, so it works with whatever mailbox you
+already have rather than needing another signup.
+
+```bash
+SMTP_HOST='smtp.gmail.com'   # NOT 'gmail' - it must be the mail server
+SMTP_PORT='587'              # 587 STARTTLS, 465 implicit TLS
+SMTP_USER='you@gmail.com'
+SMTP_PASS='your app password'
+MAIL_FROM='ልዑል ማዕድ <you@gmail.com>'
+```
+
+**Gmail needs an App Password**, not your account password: turn on 2-step
+verification, then create one at
+[myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
+The normal password is always rejected.
+
+Check it before trusting it:
+
+```bash
+npm run mail:check                     # connect and authenticate only
+npm run mail:check -- you@example.com  # send a real test message
+```
+
+It names the actual problem - an unresolvable host, refused credentials, or a
+blocked port - rather than making you guess.
 
 ### 2. The bot you can ask
 
@@ -348,6 +377,7 @@ emoji correctly.
 | `npm run reset-admin -- --list` | Who has an account |
 | `npm run smoke` | Smoke test against a running server (69 checks) |
 | `npm run telegram <cmd>` | Bot setup: `whoami`, `ids`, `setup <url>`, `info`, `off` |
+| `npm run mail:check` | Verify SMTP; add an address to send a real test |
 | `npm run icons` | Regenerate the PWA icon set |
 | `npm run lint` | ESLint |
 
@@ -417,6 +447,9 @@ src/
                     it, send.ts claims (day, channel) so it goes out once
     telegram/       the read-only bot: api.ts talks to Telegram, access.ts is
                     the allowlist, bot.ts is every report and command
+    smtp.ts         nodemailer transport, free of Next imports so the CLI
+                    check exercises the same code the app does
+    mail.ts         the server-only wrapper plus the reset email template
     auth.ts password.ts settings.ts expenses.ts notes.ts menu.ts money.ts dates.ts
 public/
   sw.js             service worker: offline shell, push, background sync

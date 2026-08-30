@@ -1,6 +1,7 @@
 import "server-only";
 import { sendMessage } from "@/lib/telegram/api";
 import { digestChatIds } from "@/lib/telegram/access";
+import { isMailConfigured, missingMailConfig, sendMail } from "@/lib/mail";
 import type { DigestPayload } from "./build";
 
 /**
@@ -10,8 +11,8 @@ import type { DigestPayload } from "./build";
  *
  *   telegram  free forever, no card, no monthly cap, works well on Ethiopian
  *             networks, and the same bot answers questions on demand
- *   email     optional, via Resend's free tier (3,000/month), useful if you
- *             want a written record you can search later
+ *   email     optional, over SMTP (nodemailer), useful if you want a written
+ *             record you can search later
  *
  * SMS was removed deliberately: no provider offers a free tier to Ethiopian
  * numbers - every one is trial credit and then per-message billing - and
@@ -88,70 +89,50 @@ export async function sendTelegram(payload: DigestPayload): Promise<ChannelResul
 /* ------------------------------------------------------------------- email */
 
 /**
- * Email via Resend. Free tier is 3,000 messages a month / 100 a day.
- *
- * RESEND_API_KEY plus DIGEST_EMAIL_FROM (a verified sender). Without a
- * verified domain Resend only delivers to your own account address.
+ * Email over SMTP, through the same nodemailer transport the password reset
+ * uses. Optional - useful if you want a written record you can search later.
  */
 export async function sendEmail(
   recipients: string[],
   payload: DigestPayload,
 ): Promise<ChannelResult> {
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.DIGEST_EMAIL_FROM;
-
-  if (!key) return unconfigured("email", "RESEND_API_KEY is not set.");
-  if (!from) return unconfigured("email", "DIGEST_EMAIL_FROM is not set.");
+  if (!isMailConfigured()) {
+    return unconfigured("email", `Email is not set up (${missingMailConfig().join(", ")}).`);
+  }
   if (recipients.length === 0) {
     return unconfigured("email", "No email addresses saved in Settings.");
   }
 
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        from,
-        to: recipients,
-        subject: payload.text.emailSubject,
-        html: payload.text.emailHtml,
-        text: payload.text.plain,
-      }),
-    });
+  const sent = await sendMail({
+    to: recipients,
+    subject: payload.text.emailSubject,
+    html: payload.text.emailHtml,
+    text: payload.text.plain,
+  });
 
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      return {
-        channel: "email",
-        configured: true,
-        sent: 0,
-        failed: recipients.length,
-        error: `Resend ${res.status}: ${detail.slice(0, 200)}`,
-      };
-    }
-
-    return {
-      channel: "email",
-      configured: true,
-      sent: recipients.length,
-      failed: 0,
-      preview: payload.text.emailSubject,
-    };
-  } catch (err) {
+  if (!sent.ok) {
     return {
       channel: "email",
       configured: true,
       sent: 0,
       failed: recipients.length,
-      error: err instanceof Error ? err.message : "network error",
+      error: sent.error,
     };
   }
+
+  return {
+    channel: "email",
+    configured: true,
+    sent: recipients.length,
+    failed: 0,
+    preview: payload.text.emailSubject,
+  };
 }
 
 /** Which channels have working credentials right now, for the Settings screen. */
 export function channelReadiness() {
   return {
     telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim()) && digestChatIds().length > 0,
-    email: Boolean(process.env.RESEND_API_KEY && process.env.DIGEST_EMAIL_FROM),
+    email: isMailConfigured(),
   };
 }

@@ -187,10 +187,10 @@ export function DigestSettingsCard({
           <ChannelBlock
             icon={<Mail className="size-4" />}
             title="Email"
-            cost="Free up to 3,000/month"
-            note="Optional, via Resend. Useful if you want a written record you can search later."
+            cost="Free with your own mailbox"
+            note="Optional, over SMTP. Useful if you want a written record you can search later."
             available={readiness.email}
-            missing="RESEND_API_KEY and DIGEST_EMAIL_FROM"
+            missing="SMTP_HOST, SMTP_USER, SMTP_PASS and MAIL_FROM"
             checked={channels.email}
             onChange={(v) => setChannel("email", v)}
           >

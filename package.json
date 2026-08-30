@@ -14,7 +14,8 @@
     "reset-admin": "tsx --env-file=.env.local scripts/reset-admin.ts",
     "smoke": "tsx --env-file=.env.local scripts/smoke-test.ts",
     "icons": "node scripts/make-icons.mjs",
-    "telegram": "tsx --env-file=.env.local scripts/telegram.ts"
+    "telegram": "tsx --env-file=.env.local scripts/telegram.ts",
+    "mail:check": "tsx --env-file=.env.local scripts/mail-check.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -27,6 +28,7 @@
     "lucide-react": "^1.34.0",
     "next": "15.5.24",
     "next-intl": "^4.14.1",
+    "nodemailer": "^9.0.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "recharts": "^2.15.4",
@@ -39,6 +41,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",

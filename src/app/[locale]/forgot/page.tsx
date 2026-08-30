@@ -23,7 +23,7 @@ export default async function ForgotPage() {
         <div className="rounded-[var(--radius-card)] border border-line bg-surface p-5 shadow-card">
           {!isMailConfigured() ? (
             <p className="mb-4 rounded-[14px] bg-warn-soft px-3.5 py-3 text-[12.5px] leading-relaxed text-warn">
-              Email is not set up on this server, so reset links cannot be sent yet. Ask the other
+              Email is not set up on this server yet, so reset links cannot be sent. Ask the other
               admin to reset your password from Team.
             </p>
           ) : null}
