@@ -8,6 +8,7 @@
  */
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   getStatus,
   startSyncEngine,
@@ -38,6 +39,7 @@ export function useSync() {
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = React.useState<SyncStatus>(getStatus);
+  const t = useTranslations("Sync");
   const { toast } = useToast();
   const router = useRouter();
   const wasOffline = React.useRef(false);
@@ -59,28 +61,28 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       wasOffline.current = true;
       toast({
         tone: "offline",
-        title: "You are offline",
-        body: "Keep working - everything is saved on this phone and sent when the signal returns.",
+        title: t("offlineToastTitle"),
+        body: t("offlineToastBody"),
       });
     }
     if (status.online && wasOffline.current) {
       wasOffline.current = false;
-      toast({ tone: "success", title: "Back online", body: "Sending anything that was waiting." });
+      toast({ tone: "success", title: t("backOnlineTitle"), body: t("backOnlineBody") });
     }
-  }, [status.online, toast]);
+  }, [status.online, toast, t]);
 
   React.useEffect(() => {
     if (prevPending.current > 0 && status.pending === 0 && status.lastSyncAt) {
       toast({
         tone: "success",
-        title: "Everything is synced",
-        body: `${prevPending.current} record${prevPending.current > 1 ? "s" : ""} sent to the database.`,
+        title: t("syncedTitle"),
+        body: t("syncedBody", { count: prevPending.current }),
       });
       // Server components now have newer data than what we rendered.
       router.refresh();
     }
     prevPending.current = status.pending;
-  }, [status.pending, status.lastSyncAt, toast, router]);
+  }, [status.pending, status.lastSyncAt, toast, router, t]);
 
   const wasBlocked = React.useRef(false);
   React.useEffect(() => {
@@ -88,29 +90,27 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       wasBlocked.current = true;
       toast({
         tone: "error",
-        title: "Recording is paused",
-        body:
-          status.blockedMessage ??
-          "An admin has paused your ability to record. Nothing you saved is lost.",
+        title: t("pausedTitle"),
+        body: status.blockedMessage ?? t("pausedBody"),
         duration: 10000,
       });
     }
     if (!status.writeBlocked && wasBlocked.current) {
       wasBlocked.current = false;
-      toast({ tone: "success", title: "Recording is allowed again" });
+      toast({ tone: "success", title: t("resumedTitle") });
     }
-  }, [status.writeBlocked, status.blockedMessage, toast]);
+  }, [status.writeBlocked, status.blockedMessage, toast, t]);
 
   React.useEffect(() => {
     if (status.needsAuth) {
       toast({
         tone: "error",
-        title: "Please sign in again",
-        body: "Your session expired. Nothing was lost - your records are still on this phone.",
+        title: t("signInAgainTitle"),
+        body: t("signInAgainBody"),
         duration: 8000,
       });
     }
-  }, [status.needsAuth, toast]);
+  }, [status.needsAuth, toast, t]);
 
   const queue = React.useCallback<SyncContextValue["queue"]>(
     async (kind, payload, summary, clientId) => {

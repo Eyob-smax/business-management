@@ -4,6 +4,7 @@
  * network. Each row says plainly whether the office has it yet.
  */
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { Check, ChevronDown, CloudOff, Receipt, RefreshCw, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
@@ -29,6 +30,8 @@ export function ShiftView({
   timezone: string;
   dayCutoffHour: number;
 }) {
+  const t = useTranslations("Shift");
+  const c = useTranslations("Common");
   const sync = useSync();
   const [day, setDay] = React.useState<string>(() => today(timezone, dayCutoffHour));
   const [rows, setRows] = React.useState<LedgerRecord[] | null>(null);
@@ -46,7 +49,7 @@ export function ShiftView({
     void load(day);
   }, [day, load, sync.pending, sync.lastSyncAt]);
 
-  const t = today(timezone, dayCutoffHour);
+  const todayKey = today(timezone, dayCutoffHour);
   const totals = React.useMemo(() => {
     const list = rows ?? [];
     return {
@@ -63,24 +66,29 @@ export function ShiftView({
         value={day}
         onChange={setDay}
         options={[
-          { value: t, label: "Today" },
-          { value: addDays(t, -1), label: "Yesterday" },
-          { value: addDays(t, -2), label: formatDayLabel(addDays(t, -2), true) },
+          { value: todayKey, label: c("today") },
+          { value: addDays(todayKey, -1), label: c("yesterday") },
+          {
+            value: addDays(todayKey, -2),
+            label: formatDayLabel(addDays(todayKey, -2), true),
+          },
         ]}
       />
 
       <div className="grid grid-cols-3 gap-2.5">
-        <StatTile label="Orders" value={String(totals.count)} />
-        <StatTile label="Items" value={String(totals.items)} />
-        <StatTile label="Taken" valueCents={totals.total} tone="brand" />
+        <StatTile label={t("orders")} value={String(totals.count)} />
+        <StatTile label={t("items")} value={String(totals.items)} />
+        <StatTile label={t("taken")} valueCents={totals.total} tone="brand" />
       </div>
 
       {totals.pending > 0 ? (
         <Card className="flex items-center gap-3 p-3.5">
           <CloudOff className="size-5 shrink-0 text-warn" />
           <p className="flex-1 text-[12.5px] leading-snug text-ink-2">
-            <span className="font-semibold text-ink">{totals.pending} order{totals.pending > 1 ? "s" : ""}</span>{" "}
-            still on this phone. They are safe and will be sent automatically.
+            <span className="font-semibold text-ink">
+              {t("pendingCount", { count: totals.pending })}
+            </span>{" "}
+            {t("pendingBody")}
           </p>
           <Button
             size="sm"
@@ -90,7 +98,7 @@ export function ShiftView({
             icon={<RefreshCw className="size-3.5" />}
             onClick={() => void sync.flush()}
           >
-            Send
+            {t("send")}
           </Button>
         </Card>
       ) : null}
@@ -104,8 +112,8 @@ export function ShiftView({
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<Receipt className="size-6" />}
-          title={day === t ? "No sales recorded yet today" : "Nothing recorded on this day"}
-          body="Orders you save on this phone appear here straight away, online or not."
+          title={day === todayKey ? t("noSalesToday") : t("noSalesDay")}
+          body={t("emptyBody")}
         />
       ) : (
         <ul className="space-y-2.5">
@@ -124,16 +132,16 @@ export function ShiftView({
                         <span className="nums">{formatMoney(r.totalCents)}</span>
                         {r.status === "pending" ? (
                           <Badge tone="warn" dot>
-                            on this phone
+                            {t("onThisPhone")}
                           </Badge>
                         ) : r.status === "rejected" ? (
                           <Badge tone="loss" dot>
-                            needs attention
+                            {t("needsAttention")}
                           </Badge>
                         ) : (
                           <Badge tone="profit">
                             <Check className="size-3" />
-                            saved
+                            {t("saved")}
                           </Badge>
                         )}
                       </p>
@@ -178,8 +186,7 @@ export function ShiftView({
                       {r.status === "rejected" ? (
                         <p className="mt-2 flex items-start gap-1.5 text-[12px] font-medium text-loss">
                           <TriangleAlert className="mt-px size-3.5 shrink-0" />
-                          The office could not accept this one. Open the sync status at the top of
-                          the screen to see why.
+                          {t("rejectedNote")}
                         </p>
                       ) : null}
                     </div>
@@ -192,7 +199,7 @@ export function ShiftView({
       )}
 
       <p className="px-1 pb-2 text-center text-[11.5px] leading-relaxed text-ink-3">
-        This list is what this phone recorded. The office sees the full picture from every device.
+        {t("footer")}
       </p>
     </div>
   );

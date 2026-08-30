@@ -9,6 +9,8 @@
  * deleted at the end.
  */
 import { readdirSync, readFileSync } from "node:fs";
+const am = JSON.parse(readFileSync("messages/am.json", "utf8")) as
+  Record<string, Record<string, string>>;
 import { neon } from "@neondatabase/serverless";
 import { SignJWT } from "jose";
 
@@ -76,7 +78,16 @@ async function main() {
   console.log("Unauthenticated:");
   const login = await get("/login");
   check("GET /login is 200", login.status === 200);
-  check("login page has the code field", login.body.includes("6-digit code"));
+  // Amharic is the default locale, English lives at /en. Asserting both is
+  // what proves the translation wiring actually works end to end.
+  check(
+    "login page is Amharic by default",
+    login.body.includes(am.LoginPage.yourCode),
+    `expected ${am.LoginPage.yourCode}`,
+  );
+  const loginEn = await get("/en/login");
+  check("GET /en/login is 200", loginEn.status === 200, `got ${loginEn.status}`);
+  check("the English login page has the code field", loginEn.body.includes("6-digit code"));
 
   const rootRedirect = await get("/");
   check("GET / redirects when signed out", [307, 302, 303].includes(rootRedirect.status),
@@ -286,7 +297,17 @@ async function main() {
     const roTill = await get("/staff", staff.cookie);
     check("read-only staff can still open the till", roTill.status === 200,
       `got ${roTill.status}`);
-    check("the till says recording is paused", roTill.body.includes("Recording is paused"));
+    check(
+      "the till says recording is paused (Amharic default)",
+      roTill.body.includes(am.Till.pausedTitle),
+      `expected ${am.Till.pausedTitle}`,
+    );
+    const roTillEn = await get("/en/staff", staff.cookie);
+    check(
+      "...and in English at /en/staff",
+      roTillEn.body.includes("Recording is paused"),
+      `got ${roTillEn.status}`,
+    );
 
     const roMenu = await get("/api/menu", staff.cookie);
     check("read-only staff can still read the menu", roMenu.status === 200);

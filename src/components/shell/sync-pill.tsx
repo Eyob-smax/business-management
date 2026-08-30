@@ -10,6 +10,7 @@
  *   offline      - no network, and that is fine
  */
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { Check, CloudOff, RefreshCw, TriangleAlert, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/dates";
@@ -19,6 +20,7 @@ import { Button, Row } from "@/components/ui/primitives";
 import { QuarantineList } from "./quarantine-list";
 
 export function SyncPill({ className }: { className?: string }) {
+  const t = useTranslations("Sync");
   const sync = useSync();
   const [open, setOpen] = React.useState(false);
 
@@ -35,27 +37,27 @@ export function SyncPill({ className }: { className?: string }) {
   const config = {
     offline: {
       icon: <CloudOff className="size-3.5" />,
-      label: sync.pending > 0 ? `${sync.pending} saved here` : "Offline",
+      label: sync.pending > 0 ? t("savedHere", { count: sync.pending }) : t("offline"),
       cls: "bg-warn-soft text-warn",
     },
     syncing: {
       icon: <RefreshCw className="size-3.5 animate-spin" />,
-      label: "Sending",
+      label: t("sending"),
       cls: "bg-info-soft text-info",
     },
     pending: {
       icon: <Upload className="size-3.5" />,
-      label: `${sync.pending} to send`,
+      label: t("toSend", { count: sync.pending }),
       cls: "bg-info-soft text-info",
     },
     attention: {
       icon: <TriangleAlert className="size-3.5" />,
-      label: `${sync.quarantined} need${sync.quarantined > 1 ? "" : "s"} you`,
+      label: t("needsYou", { count: sync.quarantined }),
       cls: "bg-loss-soft text-loss",
     },
     clear: {
       icon: <Check className="size-3.5" />,
-      label: "All saved",
+      label: t("allSaved"),
       cls: "bg-profit-soft text-profit",
     },
   }[state];
@@ -69,7 +71,7 @@ export function SyncPill({ className }: { className?: string }) {
           config.cls,
           className,
         )}
-        aria-label="Sync status"
+        aria-label={t("statusLabel")}
       >
         {config.icon}
         <span>{config.label}</span>
@@ -78,8 +80,8 @@ export function SyncPill({ className }: { className?: string }) {
       <Sheet
         open={open}
         onClose={() => setOpen(false)}
-        title="Your data"
-        subtitle="Nothing is ever deleted before the database confirms it."
+        title={t("yourData")}
+        subtitle={t("yourDataSubtitle")}
         size="md"
         footer={
           <Button
@@ -90,36 +92,36 @@ export function SyncPill({ className }: { className?: string }) {
             icon={<RefreshCw className="size-4" />}
             onClick={() => void sync.flush()}
           >
-            {sync.pending === 0 ? "Nothing waiting" : `Send ${sync.pending} now`}
+            {sync.pending === 0 ? t("nothingWaiting") : t("sendNowCount", { count: sync.pending })}
           </Button>
         }
       >
         <div className="divide-y divide-line">
           <div className="pb-3">
             <Row
-              label="Connection"
-              value={sync.online ? "Online" : "Offline"}
+              label={t("connection")}
+              value={sync.online ? t("online") : t("offline")}
               tone={sync.online ? "profit" : undefined}
             />
             <Row
-              label="Waiting on this phone"
-              value={sync.pending === 0 ? "None" : String(sync.pending)}
+              label={t("waitingHere")}
+              value={sync.pending === 0 ? t("none") : String(sync.pending)}
             />
             <Row
-              label="Last successful sync"
-              value={sync.lastSyncAt ? relativeTime(sync.lastSyncAt) : "Not yet"}
+              label={t("lastSync")}
+              value={sync.lastSyncAt ? relativeTime(sync.lastSyncAt) : t("notYet")}
               tone={sync.lastSyncAt ? undefined : "muted"}
             />
             {sync.lastError ? (
-              <Row label="Last message" value={sync.lastError} tone="muted" />
+              <Row label={t("lastMessage")} value={sync.lastError} tone="muted" />
             ) : null}
           </div>
 
           <div className="py-4">
             <p className="text-[13px] leading-relaxed text-ink-2">
               {sync.pending === 0
-                ? "Everything you have recorded is in the database. You can close the app safely."
-                : "These records are stored on this phone. They will be sent automatically as soon as there is internet - you do not need to keep the app open."}
+                ? t("allInDatabase")
+                : t("storedOnPhone")}
             </p>
           </div>
 

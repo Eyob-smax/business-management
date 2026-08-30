@@ -7,6 +7,7 @@
  * the reason, try again, or knowingly throw it away. Silence would be a lie.
  */
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { RotateCcw, Trash2, TriangleAlert } from "lucide-react";
 import { listQuarantine, requeueQuarantined, discardQuarantined } from "@/lib/offline/outbox";
 import type { QuarantineRecord } from "@/lib/offline/db";
@@ -19,6 +20,7 @@ import { useSync } from "@/components/providers/sync-provider";
 export function QuarantineList() {
   const [rows, setRows] = React.useState<QuarantineRecord[] | null>(null);
   const [discarding, setDiscarding] = React.useState<QuarantineRecord | null>(null);
+  const t = useTranslations("Sync");
   const { toast } = useToast();
   const sync = useSync();
 
@@ -41,8 +43,8 @@ export function QuarantineList() {
       <div className="py-2">
         <EmptyState
           className="py-6"
-          title="No rejected records"
-          body="If the server ever refuses something, it will appear here instead of disappearing."
+          title={t("noRejected")}
+          body={t("noRejectedBody")}
         />
       </div>
     );
@@ -52,7 +54,7 @@ export function QuarantineList() {
     <div className="py-4">
       <p className="mb-3 flex items-center gap-2 text-[13px] font-bold text-loss">
         <TriangleAlert className="size-4" />
-        {rows.length} record{rows.length > 1 ? "s" : ""} the server refused
+        {t("rejectedCount", { count: rows.length })}
       </p>
 
       <div className="space-y-2.5">
@@ -76,10 +78,10 @@ export function QuarantineList() {
                   await requeueQuarantined(r.clientId);
                   await sync.flush();
                   await load();
-                  toast({ tone: "info", title: "Trying again" });
+                  toast({ tone: "info", title: t("tryingAgain") });
                 }}
               >
-                Try again
+                {t("tryAgain")}
               </Button>
               <Button
                 size="sm"
@@ -87,7 +89,7 @@ export function QuarantineList() {
                 icon={<Trash2 className="size-3.5" />}
                 onClick={() => setDiscarding(r)}
               >
-                Discard
+                {t("discard")}
               </Button>
             </div>
           </div>
@@ -97,20 +99,20 @@ export function QuarantineList() {
       <ConfirmDialog
         open={Boolean(discarding)}
         onClose={() => setDiscarding(null)}
-        title="Discard this record?"
+        title={t("discardTitle")}
         body={
           <>
-            <span className="font-semibold text-ink">{discarding?.summary}</span> will be deleted
-            from this phone and will never reach the database. This cannot be undone.
+            <span className="font-semibold text-ink">{discarding?.summary}</span>{" "}
+            {t("discardBody")}
           </>
         }
-        confirmLabel="Discard for good"
+        confirmLabel={t("discardConfirm")}
         destructive
         onConfirm={async () => {
           if (discarding) await discardQuarantined(discarding.clientId);
           setDiscarding(null);
           await load();
-          toast({ tone: "info", title: "Record discarded" });
+          toast({ tone: "info", title: t("discarded") });
         }}
       />
     </div>

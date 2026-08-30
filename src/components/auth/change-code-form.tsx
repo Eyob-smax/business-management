@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import Link from "next/link";
 import { KeyRound, TriangleAlert } from "lucide-react";
@@ -14,6 +15,8 @@ export function ChangeCodeForm({
   forced: boolean;
   role: "admin" | "staff";
 }) {
+  const t = useTranslations("ChangeCode");
+  const c = useTranslations("Common");
   const [state, action, pending] = useActionState<FormState, FormData>(changeCode, null);
   const [current, setCurrent] = React.useState("");
   const [next, setNext] = React.useState("");
@@ -26,7 +29,7 @@ export function ChangeCodeForm({
     <form action={action} className="space-y-5">
       <CodeInput
         name="current"
-        label={forced ? "The code you were given" : "Current code"}
+        label={forced ? t("given") : t("current")}
         value={current}
         onChange={setCurrent}
         autoFocus
@@ -34,14 +37,14 @@ export function ChangeCodeForm({
       />
       <CodeInput
         name="next"
-        label="New code"
+        label={t("newCode")}
         value={next}
         onChange={setNext}
         disabled={pending}
       />
       <CodeInput
         name="confirm"
-        label="New code again"
+        label={t("newCodeAgain")}
         value={confirm}
         onChange={setConfirm}
         disabled={pending}
@@ -49,7 +52,7 @@ export function ChangeCodeForm({
       />
 
       {mismatch ? (
-        <p className="text-[12.5px] font-medium text-loss">The two new codes do not match.</p>
+        <p className="text-[12.5px] font-medium text-loss">{t("mismatch")}</p>
       ) : null}
 
       {state?.error ? (
@@ -71,7 +74,7 @@ export function ChangeCodeForm({
         disabled={!ready}
         icon={<KeyRound className="size-4" />}
       >
-        Save my new code
+        {t("saveCode")}
       </Button>
 
       {!forced ? (
@@ -79,11 +82,11 @@ export function ChangeCodeForm({
           href={role === "admin" ? "/admin" : "/staff"}
           className="block text-center text-[13px] font-medium text-ink-3 underline-offset-4 hover:underline"
         >
-          Cancel
+          {c("cancel")}
         </Link>
       ) : (
         <p className="text-center text-[12px] leading-relaxed text-ink-3">
-          Avoid your birthday or six identical digits.
+          {t("hint")}
         </p>
       )}
     </form>

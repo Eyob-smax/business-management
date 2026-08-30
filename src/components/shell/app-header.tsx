@@ -3,6 +3,7 @@
  * Sticky top bar: where you are, whether your data is safe, and who you are.
  */
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { logout } from "@/app/actions/auth";
 import { Avatar, Button, Divider, Segmented } from "@/components/ui/primitives";
 import { Sheet } from "@/components/ui/overlay";
+import { LanguagePicker } from "@/components/ui/language-switcher";
 import { useTheme, type ThemeChoice } from "@/components/providers/theme-provider";
 import { SyncPill } from "./sync-pill";
 import { NotificationBell } from "./notification-bell";
@@ -38,6 +40,7 @@ export function AppHeader({
   right?: React.ReactNode;
   showBell?: boolean;
 }) {
+  const t = useTranslations("Shell");
   const [menuOpen, setMenuOpen] = React.useState(false);
   const { theme, setTheme } = useTheme();
 
@@ -48,7 +51,7 @@ export function AppHeader({
           {backHref ? (
             <Link
               href={backHref}
-              aria-label="Back"
+              aria-label={t("back")}
               className="-ml-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink-2 transition active:scale-95"
             >
               <ChevronLeft className="size-5" />
@@ -70,7 +73,7 @@ export function AppHeader({
             {showBell ? <NotificationBell /> : null}
             <button
               onClick={() => setMenuOpen(true)}
-              aria-label="Account menu"
+              aria-label={t("accountMenu")}
               className="ml-0.5 rounded-full transition active:scale-95"
             >
               <Avatar emoji={user.avatar} name={user.name} size={32} />
@@ -83,14 +86,14 @@ export function AppHeader({
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         title={user.name}
-        subtitle={user.role === "admin" ? "Administrator" : "Staff"}
+        subtitle={user.role === "admin" ? t("administrator") : t("staff")}
         size="sm"
       >
         <div className="space-y-1 pb-2">
           <MenuLink
             href="/notes"
             icon={<MessageSquare className="size-[18px]" />}
-            label="Notes & messages"
+            label={t("notesAndMessages")}
             onNavigate={() => setMenuOpen(false)}
           />
           {user.role === "admin" ? (
@@ -98,19 +101,19 @@ export function AppHeader({
               <MenuLink
                 href="/admin/team"
                 icon={<Users className="size-[18px]" />}
-                label="Team & codes"
+                label={t("teamAndCodes")}
                 onNavigate={() => setMenuOpen(false)}
               />
               <MenuLink
                 href="/admin/settings"
                 icon={<Settings className="size-[18px]" />}
-                label="Settings"
+                label={t("settings")}
                 onNavigate={() => setMenuOpen(false)}
               />
               <MenuLink
                 href="/shop"
                 icon={<Smartphone className="size-[18px]" />}
-                label="Mobile shop"
+                label={t("mobileShop")}
                 onNavigate={() => setMenuOpen(false)}
               />
             </>
@@ -118,7 +121,7 @@ export function AppHeader({
           <MenuLink
             href="/change-code"
             icon={<Settings className="size-[18px]" />}
-            label="Change my code"
+            label={t("changeMyCode")}
             onNavigate={() => setMenuOpen(false)}
           />
 
@@ -126,15 +129,24 @@ export function AppHeader({
 
           <div className="px-1">
             <p className="mb-2 text-[12px] font-bold tracking-wide text-ink-3 uppercase">
-              Appearance
+              {t("language")}
+            </p>
+            <LanguagePicker />
+          </div>
+
+          <Divider className="my-3" />
+
+          <div className="px-1">
+            <p className="mb-2 text-[12px] font-bold tracking-wide text-ink-3 uppercase">
+              {t("appearance")}
             </p>
             <Segmented<ThemeChoice>
               value={theme}
               onChange={setTheme}
               options={[
-                { value: "light", label: <Sun className="mx-auto size-4" />, hint: "Light" },
-                { value: "system", label: <SunMoon className="mx-auto size-4" />, hint: "System" },
-                { value: "dark", label: <Moon className="mx-auto size-4" />, hint: "Dark" },
+                { value: "light", label: <Sun className="mx-auto size-4" />, hint: t("light") },
+                { value: "system", label: <SunMoon className="mx-auto size-4" />, hint: t("system") },
+                { value: "dark", label: <Moon className="mx-auto size-4" />, hint: t("dark") },
               ]}
             />
           </div>
@@ -149,7 +161,7 @@ export function AppHeader({
               className="justify-start text-loss"
               icon={<LogOut className="size-[18px]" />}
             >
-              Sign out
+              {t("signOut")}
             </Button>
           </form>
         </div>

@@ -10,6 +10,7 @@
  *  - Staff never see cost or profit. They see what the customer pays.
  */
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import {
   CircleMinus,
   Loader2,
@@ -65,6 +66,8 @@ export function Till({
    */
   canRecord: boolean;
 }) {
+  const t = useTranslations("Till");
+  const c = useTranslations("Common");
   const menu = useMenuCache(initialMenu);
   const sync = useSync();
   const { toast } = useToast();
@@ -138,8 +141,8 @@ export function Till({
     if (!canRecord) {
       toast({
         tone: "error",
-        title: "Recording is paused",
-        body: "An admin has paused your ability to record sales. Please speak to them.",
+        title: t("pausedTitle"),
+        body: t("pausedToast"),
       });
       return;
     }
@@ -211,20 +214,20 @@ export function Till({
         sync.online
           ? {
               tone: "success",
-              title: `Saved - ${formatMoney(total)}`,
-              body: "Sent to the office.",
+              title: t("savedTitle", { amount: formatMoney(total) }),
+              body: t("savedBody"),
             }
           : {
               tone: "offline",
-              title: `Saved on this phone - ${formatMoney(total)}`,
-              body: "It will be sent automatically when you have internet. You can keep selling.",
+              title: t("savedOfflineTitle", { amount: formatMoney(total) }),
+              body: t("savedOfflineBody"),
             },
       );
     } catch (err) {
       toast({
         tone: "error",
-        title: "Could not save",
-        body: err instanceof Error ? err.message : "Please try again.",
+        title: c("couldNotSave"),
+        body: err instanceof Error ? err.message : c("pleaseTryAgain"),
       });
     } finally {
       setSaving(false);
@@ -237,7 +240,7 @@ export function Till({
     return (
       <div className="flex flex-col items-center justify-center py-24 text-ink-3">
         <Loader2 className="size-6 animate-spin" />
-        <p className="mt-3 text-[13px]">Loading the menu...</p>
+        <p className="mt-3 text-[13px]">{t("loadingMenu")}</p>
       </div>
     );
   }
@@ -246,15 +249,15 @@ export function Till({
     return (
       <EmptyState
         icon={<ShoppingBag className="size-6" />}
-        title="No menu yet"
+        title={t("noMenuTitle")}
         body={
           menu.error
-            ? "The menu has not reached this phone yet. Connect to the internet once and it will be saved here for offline use."
-            : "An admin needs to add food items before you can record sales."
+            ? t("noMenuOffline")
+            : t("noMenuAdmin")
         }
         action={
           <Button variant="secondary" onClick={() => void menu.refresh()} loading={menu.refreshing}>
-            Try again
+            {c("tryAgain")}
           </Button>
         }
       />
@@ -267,10 +270,9 @@ export function Till({
         <div className="mb-3 flex items-start gap-2.5 rounded-[var(--radius-card)] border border-warn/30 bg-warn-soft p-3.5">
           <Lock className="mt-px size-4 shrink-0 text-warn" />
           <div>
-            <p className="text-[13px] font-bold text-warn">Recording is paused</p>
+            <p className="text-[13px] font-bold text-warn">{t("pausedTitle")}</p>
             <p className="mt-1 text-[12.5px] leading-relaxed text-warn">
-              An admin has paused your ability to record sales. You can still look at the menu and
-              your past sales, and anything you already saved is safe.
+              {t("pausedBody")}
             </p>
           </div>
         </div>
@@ -283,14 +285,14 @@ export function Till({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search food..."
+            placeholder={t("searchFood")}
             enterKeyHint="search"
             className="h-11 w-full rounded-full border border-line bg-surface pr-10 pl-10 text-[15px] text-ink placeholder:text-ink-3 focus:border-brand focus:ring-4 focus:ring-brand/12 focus:outline-none"
           />
           {query ? (
             <button
               onClick={() => setQuery("")}
-              aria-label="Clear search"
+              aria-label={t("clearSearch")}
               className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-full p-1 text-ink-3"
             >
               <X className="size-4" />
@@ -300,7 +302,7 @@ export function Till({
 
         <div className="no-scrollbar -mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4">
           <CategoryChip
-            label="All"
+            label={t("all")}
             emoji={"\u{1F374}"}
             active={category === "all"}
             onClick={() => setCategory("all")}
@@ -319,15 +321,15 @@ export function Till({
 
       {menu.stale ? (
         <p className="mb-3 rounded-[12px] bg-warn-soft px-3 py-2 text-[12px] font-medium text-warn">
-          This menu was last updated over a day ago. Prices may have changed.
+          {t("staleMenu")}
         </p>
       ) : null}
 
       {/* Tiles */}
       {visible.length === 0 ? (
         <EmptyState
-          title="Nothing matches"
-          body="Try a different word or pick another category."
+          title={t("nothingMatches")}
+          body={t("nothingMatchesBody")}
           action={
             <Button
               variant="secondary"
@@ -337,7 +339,7 @@ export function Till({
                 setCategory("all");
               }}
             >
-              Show everything
+              {t("showEverything")}
             </Button>
           }
         />
@@ -369,15 +371,15 @@ export function Till({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[11.5px] font-semibold tracking-wide text-white/80 uppercase">
-                  {cart.length} line{cart.length > 1 ? "s" : ""}
-                  {!sync.online ? " - offline" : ""}
+                  {t("lines", { count: cart.length })}
+                  {!sync.online ? t("offlineSuffix") : ""}
                 </span>
                 <span className="nums block truncate text-[17px] leading-tight font-bold text-white">
                   {formatMoney(total)}
                 </span>
               </span>
               <span className="shrink-0 rounded-full bg-white px-3.5 py-2 text-[13.5px] font-bold text-brand">
-                Review
+                {t("review")}
               </span>
             </button>
           </div>
@@ -388,13 +390,13 @@ export function Till({
       <Sheet
         open={cartOpen}
         onClose={() => setCartOpen(false)}
-        title="This order"
-        subtitle={`${itemCount} item${itemCount === 1 ? "" : "s"} - ${cart.length} line${cart.length === 1 ? "" : "s"}`}
+        title={t("thisOrder")}
+        subtitle={t("orderSubtitle", { items: itemCount, lines: cart.length })}
         size="md"
         footer={
           <div className="space-y-2.5">
             <div className="flex items-baseline justify-between">
-              <span className="text-[13px] font-semibold text-ink-2">Customer pays</span>
+              <span className="text-[13px] font-semibold text-ink-2">{t("customerPays")}</span>
               <span className="nums text-[20px] font-bold text-ink">{formatMoney(total)}</span>
             </div>
             <Button
@@ -405,18 +407,18 @@ export function Till({
               disabled={cart.length === 0}
               onClick={save}
             >
-              {sync.online ? "Save sale" : "Save on this phone"}
+              {sync.online ? t("saveSale") : t("saveOnPhone")}
             </Button>
             {!sync.online ? (
               <p className="text-center text-[11.5px] leading-snug text-ink-3">
-                No internet right now - it is stored safely and sent later.
+                {t("noInternetNote")}
               </p>
             ) : null}
           </div>
         }
       >
         {cart.length === 0 ? (
-          <EmptyState title="Nothing in this order yet" />
+          <EmptyState title={t("emptyOrder")} />
         ) : (
           <>
             <ul className="divide-y divide-line">
@@ -426,13 +428,13 @@ export function Till({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-semibold text-ink">{l.item.name}</p>
                     <p className="nums text-[12px] text-ink-3">
-                      {formatMoney(l.item.priceCents)} each
+                      {formatMoney(l.item.priceCents)} {c("each")}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => add(l.item, -1)}
-                      aria-label={`One less ${l.item.name}`}
+                      aria-label={t("oneLess", { name: l.item.name })}
                       className="inline-flex size-9 items-center justify-center rounded-full border border-line text-ink-2 transition active:scale-90"
                     >
                       <Minus className="size-4" />
@@ -442,7 +444,7 @@ export function Till({
                     </span>
                     <button
                       onClick={() => add(l.item, 1)}
-                      aria-label={`One more ${l.item.name}`}
+                      aria-label={t("oneMore", { name: l.item.name })}
                       className="inline-flex size-9 items-center justify-center rounded-full bg-brand text-white transition active:scale-90"
                     >
                       <Plus className="size-4" />
@@ -460,27 +462,27 @@ export function Till({
               className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-loss"
             >
               <Trash2 className="size-3.5" />
-              Clear this order
+              {t("clearOrder")}
             </button>
 
             <div className="mt-5 space-y-4 border-t border-line pt-4">
               <div>
-                <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">Paid with</span>
+                <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">{t("paidWith")}</span>
                 <Segmented<Payment>
                   value={payment}
                   onChange={setPayment}
                   size="sm"
                   options={[
-                    { value: "cash", label: "Cash" },
-                    { value: "telebirr", label: "Telebirr" },
-                    { value: "card", label: "Card" },
-                    { value: "credit", label: "Credit" },
+                    { value: "cash", label: c("cash") },
+                    { value: "telebirr", label: c("telebirr") },
+                    { value: "card", label: c("card") },
+                    { value: "credit", label: c("credit") },
                   ]}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Discount" hint="Leave empty for none">
+                <Field label={c("discount")} hint={t("discountHint")}>
                   <Input
                     value={discountText}
                     onChange={(e) => setDiscountText(e.target.value)}
@@ -489,33 +491,33 @@ export function Till({
                     prefix="Br"
                   />
                 </Field>
-                <Field label="Table / order no." hint="Optional">
+                <Field label={t("tableLabel")} hint={c("optional")}>
                   <Input
                     value={tableLabel}
                     onChange={(e) => setTableLabel(e.target.value)}
-                    placeholder="e.g. T4"
+                    placeholder={t("tablePlaceholder")}
                     maxLength={40}
                   />
                 </Field>
               </div>
 
-              <Field label="Note for the office" hint="Optional - the admin will see this">
+              <Field label={t("noteLabel")} hint={t("noteHint")}>
                 <Textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={2}
                   maxLength={500}
-                  placeholder="e.g. regular customer, paid tomorrow"
+                  placeholder={t("notePlaceholder")}
                 />
               </Field>
 
               <div className="rounded-[14px] bg-surface-2 p-3.5">
-                <Line label="Subtotal" value={formatMoney(subtotal)} />
+                <Line label={c("subtotal")} value={formatMoney(subtotal)} />
                 {discount > 0 ? (
-                  <Line label="Discount" value={`- ${formatMoney(discount)}`} tone="loss" />
+                  <Line label={c("discount")} value={`- ${formatMoney(discount)}`} tone="loss" />
                 ) : null}
                 <div className="mt-1.5 border-t border-line pt-1.5">
-                  <Line label="Total" value={formatMoney(total)} bold />
+                  <Line label={c("total")} value={formatMoney(total)} bold />
                 </div>
               </div>
             </div>
