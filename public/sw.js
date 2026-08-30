@@ -13,7 +13,7 @@
  * with src/lib/offline/db.ts.
  */
 
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL_CACHE = `bm-shell-${VERSION}`;
 const PAGE_CACHE = `bm-pages-${VERSION}`;
 const ASSET_CACHE = `bm-assets-${VERSION}`;
@@ -64,12 +64,43 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
   if (event.data?.type === "SYNC_NOW") event.waitUntil(drainOutbox("message"));
+  if (event.data?.type === "WARM_PAGES") event.waitUntil(warmPages(event.data.urls));
 });
 
 /* -------------------------------------------------------------------- fetch */
 
 /** Never let a cached response outlive its usefulness by more than this. */
 const DATA_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Is this the App Router asking for a flight payload rather than a page?
+ *
+ * A client-side <Link> navigation does NOT have mode "navigate" - it is a
+ * normal fetch carrying an RSC header and usually a ?_rsc= cache-buster. The
+ * body is React flight data, not HTML. Serving one of those to the browser as
+ * a document paints the raw `0:{"b":...}` text on screen, so they must never
+ * enter the page cache and never be returned for a navigation.
+ */
+function isFlightRequest(req, url) {
+  return (
+    req.headers.get("RSC") === "1" ||
+    req.headers.get("Next-Router-Prefetch") === "1" ||
+    req.headers.get("Next-Router-State-Tree") !== null ||
+    url.searchParams.has("_rsc")
+  );
+}
+
+function isHtmlResponse(res) {
+  const type = res.headers.get("content-type") || "";
+  return type.includes("text/html");
+}
+
+/** Cache key without the flight cache-buster, so one page has one entry. */
+function pageCacheKey(url) {
+  const clean = new URL(url);
+  clean.searchParams.delete("_rsc");
+  return clean.toString();
+}
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
@@ -83,6 +114,13 @@ self.addEventListener("fetch", (event) => {
 
   if (req.mode === "navigate") {
     event.respondWith(handleNavigation(req));
+    return;
+  }
+
+  // Checked BEFORE the generic handlers: a flight request looks like an
+  // ordinary same-origin GET and would otherwise be cached as a page.
+  if (isFlightRequest(req, url)) {
+    event.respondWith(handleFlight(req));
     return;
   }
 
@@ -100,34 +138,48 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(networkFirst(req, PAGE_CACHE));
+  // Anything else goes straight to the network, uncached. Guessing wrong about
+  // what is safe to cache is what caused the flight-payload bug.
 });
 
 /**
- * Pages: network first (so numbers are fresh), fall back to the last good copy
- * of that page, then to the offline shell. A staff phone that opens the app in
- * a dead spot still gets a working sell screen.
+ * Flight payloads are never cached and never faked.
+ *
+ * Offline, we return a real network error. Next's router treats that as "the
+ * soft navigation failed" and falls back to a full document navigation, which
+ * arrives here as mode "navigate" and CAN be served from the HTML cache. Any
+ * synthetic response we invented instead would be parsed as flight data and
+ * either crash the router or paint gibberish.
+ */
+async function handleFlight(req) {
+  try {
+    return await fetch(req);
+  } catch {
+    return Response.error();
+  }
+}
+
+/**
+ * Pages: network first (so numbers are fresh), falling back to the last good
+ * HTML for that exact page, then to the offline shell.
+ *
+ * Only text/html is ever stored or returned here. There is deliberately no
+ * "close enough" sibling fallback any more - serving one page's body for
+ * another URL was how a flight payload ended up rendered as text.
  */
 async function handleNavigation(req) {
   const cache = await caches.open(PAGE_CACHE);
+  const key = pageCacheKey(req.url);
+
   try {
     const fresh = await fetch(req);
-    if (fresh && fresh.ok) cache.put(req, fresh.clone()).catch(() => {});
+    if (fresh && fresh.ok && isHtmlResponse(fresh)) {
+      cache.put(key, fresh.clone()).catch(() => {});
+    }
     return fresh;
   } catch {
-    const cached = await cache.match(req, { ignoreSearch: false });
-    if (cached) return cached;
-
-    // Any cached page under the same first path segment is better than nothing.
-    const url = new URL(req.url);
-    const sibling = (await cache.keys()).find((k) => {
-      const ku = new URL(k.url);
-      return ku.pathname.split("/")[1] === url.pathname.split("/")[1];
-    });
-    if (sibling) {
-      const res = await cache.match(sibling);
-      if (res) return res;
-    }
+    const cached = await cache.match(key);
+    if (cached && isHtmlResponse(cached)) return cached;
 
     const shell = await caches.open(SHELL_CACHE);
     return (
@@ -135,6 +187,27 @@ async function handleNavigation(req) {
       new Response("Offline", { status: 503, headers: { "content-type": "text/plain" } })
     );
   }
+}
+
+/**
+ * Fetch and store the pages this person actually uses, so switching tabs
+ * offline works even for screens they have not opened yet this session.
+ * Triggered by the app once it is online and signed in.
+ */
+async function warmPages(urls) {
+  const cache = await caches.open(PAGE_CACHE);
+  await Promise.all(
+    (urls || []).map(async (url) => {
+      try {
+        const res = await fetch(url, { credentials: "same-origin" });
+        if (res.ok && isHtmlResponse(res)) {
+          await cache.put(pageCacheKey(new URL(url, self.location.origin).toString()), res);
+        }
+      } catch {
+        /* offline right now - the next warm call will get it */
+      }
+    }),
+  );
 }
 
 async function cacheFirst(req, cacheName) {

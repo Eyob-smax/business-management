@@ -25,6 +25,8 @@ import { previousRange, rangeFor, today } from "@/lib/dates";
 import { parseRange, type RangeSearchParams } from "@/lib/range-params";
 import { getBusinessSettings } from "@/lib/settings";
 import { formatMoney } from "@/lib/money";
+import { labelFor } from "@/lib/payments";
+import { getLocale } from "next-intl/server";
 import { Avatar, Card, CardHeader, EmptyState } from "@/components/ui/primitives";
 import { RankBar } from "@/components/ui/stat";
 import { HourlyChart, WeekdayChart } from "@/components/charts/charts";
@@ -35,14 +37,6 @@ import { TimelineCompare } from "@/components/admin/timeline-compare";
 
 export const metadata: Metadata = { title: "Reports" };
 
-const PAYMENT_LABEL: Record<string, string> = {
-  cash: "Cash",
-  telebirr: "Telebirr",
-  card: "Card",
-  credit: "Credit",
-  other: "Other",
-};
-
 /** DateRange -> the {from,to} pair getItemPerformanceWindows wants. */
 const pick = (r: { from: string; to: string }) => ({ from: r.from, to: r.to });
 
@@ -51,6 +45,7 @@ export default async function AnalyticsPage({
 }: {
   searchParams: Promise<RangeSearchParams>;
 }) {
+  const locale = await getLocale();
   const params = await searchParams;
   const range = parseRange(params);
   const anchor = today();
@@ -252,7 +247,7 @@ export default async function AnalyticsPage({
               <li key={p.method}>
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-[13.5px] font-semibold text-ink">
-                    {PAYMENT_LABEL[p.method] ?? p.method}
+                    {labelFor(p.method, locale)}
                   </span>
                   <span className="nums text-[13px] text-ink-2">
                     {formatMoney(p.revenueCents, { compact: true })}

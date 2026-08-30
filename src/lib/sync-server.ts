@@ -22,6 +22,7 @@ import "server-only";
 import { z } from "zod";
 import { sql } from "@/db";
 import { getSettings } from "./settings";
+import { isPaymentId } from "./payments";
 import { businessDateOf } from "./dates";
 import { notifyAdmins } from "./push";
 import { formatMoney } from "./money";
@@ -46,7 +47,10 @@ const saleLineSchema = z.object({
 const salePayloadSchema = z.object({
   module: z.enum(["restaurant", "shop"]).default("restaurant"),
   soldAt: z.string().datetime({ offset: true }),
-  paymentMethod: z.enum(["cash", "telebirr", "card", "credit", "other"]).default("cash"),
+  paymentMethod: z
+    .string()
+    .refine(isPaymentId, "Unknown payment method.")
+    .default("cash"),
   discountCents: cents.default(0),
   tableLabel: z.string().trim().max(40).nullable().optional(),
   customerNote: z.string().trim().max(500).nullable().optional(),

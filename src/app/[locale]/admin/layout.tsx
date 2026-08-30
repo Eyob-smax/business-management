@@ -5,6 +5,7 @@ import { getBusinessSettings } from "@/lib/settings";
 import { countOpenIssues } from "@/lib/notes";
 import { AppHeader } from "@/components/shell/app-header";
 import { BottomNav } from "@/components/shell/bottom-nav";
+import { OfflineWarmer } from "@/components/pwa/offline-warmer";
 import { getTranslations } from 'next-intl/server';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-dvh">
+      <OfflineWarmer
+        paths={["/admin", "/admin/analytics", "/admin/log", "/admin/expenses", "/admin/menu", "/notes"]}
+      />
       <AppHeader
         title={business.restaurantName}
         subtitle={t('ownerView')}

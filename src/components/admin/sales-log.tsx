@@ -26,14 +26,8 @@ import {
 } from "@/components/ui/primitives";
 import { Sheet } from "@/components/ui/overlay";
 import { useToast } from "@/components/ui/toast";
-
-const PAYMENT_LABEL: Record<string, string> = {
-  cash: "Cash",
-  telebirr: "Telebirr",
-  card: "Card",
-  credit: "Credit",
-  other: "Other",
-};
+import { useLocale } from "next-intl";
+import { labelFor } from "@/lib/payments";
 
 export function SalesLog({
   sales,
@@ -43,6 +37,7 @@ export function SalesLog({
   /** Multi-day range: show which day each order belongs to. */
   showDates?: boolean;
 }) {
+  const locale = useLocale();
   const { toast } = useToast();
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<"all" | "late" | "void">("all");
@@ -145,7 +140,7 @@ export function SalesLog({
                       <p className="nums mt-0.5 truncate text-[12px] text-ink-3">
                         {showDates ? `${formatDayLabel(s.businessDate, true)} - ` : ""}
                         {formatClock(s.soldAt)} - {s.staffName} - {s.itemCount} item
-                        {s.itemCount === 1 ? "" : "s"} - {PAYMENT_LABEL[s.paymentMethod]}
+                        {s.itemCount === 1 ? "" : "s"} - {labelFor(s.paymentMethod, locale)}
                         {s.tableLabel ? ` - ${s.tableLabel}` : ""}
                       </p>
                     </div>

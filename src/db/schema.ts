@@ -35,13 +35,12 @@ export const roleEnum = pgEnum("role", ["admin", "staff"]);
 export const accessLevelEnum = pgEnum("access_level", ["full", "read_only", "blocked"]);
 export const moduleEnum = pgEnum("module", ["restaurant", "shop"]);
 export const saleStatusEnum = pgEnum("sale_status", ["completed", "void"]);
-export const paymentEnum = pgEnum("payment_method", [
-  "cash",
-  "telebirr",
-  "card",
-  "credit",
-  "other",
-]);
+/**
+ * Payment method is plain TEXT, validated against the catalog in
+ * lib/payments.ts, not a Postgres enum. Ethiopian banks and wallets change
+ * often enough that needing a migration to accept one would mean the app
+ * cannot record a real payment.
+ */
 /** How an expense spreads across the calendar when computing daily profit. */
 export const expenseScopeEnum = pgEnum("expense_scope", [
   "one_off",
@@ -144,7 +143,7 @@ export const sales = pgTable(
      */
     businessDate: date("business_date").notNull(),
     status: saleStatusEnum("status").notNull().default("completed"),
-    paymentMethod: paymentEnum("payment_method").notNull().default("cash"),
+    paymentMethod: text("payment_method").notNull().default("cash"),
     /** Sum of line totals less discount, minor units. Denormalised for reporting. */
     totalCents: integer("total_cents").notNull().default(0),
     /** Sum of line est-costs at time of sale, minor units. */

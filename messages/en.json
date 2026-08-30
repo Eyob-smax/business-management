@@ -160,7 +160,11 @@
     "savedTitle": "Saved - {amount}",
     "savedBody": "Sent to the office.",
     "savedOfflineTitle": "Saved on this phone - {amount}",
-    "savedOfflineBody": "It will be sent automatically when you have internet. You can keep selling."
+    "savedOfflineBody": "It will be sent automatically when you have internet. You can keep selling.",
+    "moreWays": "Bank / other",
+    "moreWaysSubtitle": "Banks, mobile money and anything else",
+    "searchBank": "Search banks and wallets...",
+    "noBankMatch": "Nothing matches that name."
   },
   "Shift": {
     "orders": "Orders",

@@ -4,7 +4,8 @@
  * network. Each row says plainly whether the office has it yet.
  */
 import * as React from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { labelFor } from "@/lib/payments";
 import { Check, ChevronDown, CloudOff, Receipt, RefreshCw, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/money";
@@ -15,14 +16,6 @@ import { useSync } from "@/components/providers/sync-provider";
 import { Badge, Button, Card, EmptyState, Segmented } from "@/components/ui/primitives";
 import { StatTile } from "@/components/ui/stat";
 
-const PAYMENT_LABELS: Record<string, string> = {
-  cash: "Cash",
-  telebirr: "Telebirr",
-  card: "Card",
-  credit: "Credit",
-  other: "Other",
-};
-
 export function ShiftView({
   timezone,
   dayCutoffHour,
@@ -30,6 +23,7 @@ export function ShiftView({
   timezone: string;
   dayCutoffHour: number;
 }) {
+  const locale = useLocale();
   const t = useTranslations("Shift");
   const c = useTranslations("Common");
   const sync = useSync();
@@ -147,7 +141,7 @@ export function ShiftView({
                       </p>
                       <p className="nums mt-0.5 text-[12px] text-ink-3">
                         {formatClock(r.soldAt)} - {r.itemCount} item{r.itemCount > 1 ? "s" : ""} -{" "}
-                        {PAYMENT_LABELS[r.paymentMethod] ?? r.paymentMethod}
+                        {labelFor(r.paymentMethod, locale)}
                         {r.tableLabel ? ` - ${r.tableLabel}` : ""}
                       </p>
                     </div>

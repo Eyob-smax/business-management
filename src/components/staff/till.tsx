@@ -37,14 +37,15 @@ import {
   EmptyState,
   Field,
   Input,
-  Segmented,
   Textarea,
 } from "@/components/ui/primitives";
 import { Sheet } from "@/components/ui/overlay";
+import { PaymentPicker } from "./payment-picker";
 
 type MenuItem = MenuItemDTO;
 type CartLine = { item: MenuItem; qty: number };
-type Payment = "cash" | "telebirr" | "card" | "credit" | "other";
+/** A payment method id from lib/payments.ts. */
+type Payment = string;
 
 export function Till({
   initialMenu,
@@ -468,17 +469,7 @@ export function Till({
             <div className="mt-5 space-y-4 border-t border-line pt-4">
               <div>
                 <span className="mb-1.5 block text-[13px] font-semibold text-ink-2">{t("paidWith")}</span>
-                <Segmented<Payment>
-                  value={payment}
-                  onChange={setPayment}
-                  size="sm"
-                  options={[
-                    { value: "cash", label: c("cash") },
-                    { value: "telebirr", label: c("telebirr") },
-                    { value: "card", label: c("card") },
-                    { value: "credit", label: c("credit") },
-                  ]}
-                />
+                <PaymentPicker value={payment} onChange={setPayment} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">

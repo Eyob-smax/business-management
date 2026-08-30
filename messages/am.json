@@ -160,7 +160,11 @@
     "savedTitle": "ተቀምጧል - {amount}",
     "savedBody": "ወደ ቢሮው ተልኳል።",
     "savedOfflineTitle": "በዚህ ስልክ ተቀምጧል - {amount}",
-    "savedOfflineBody": "ኢንተርኔት ሲኖርዎ በራሱ ይላካል። መሸጥዎን ይቀጥሉ።"
+    "savedOfflineBody": "ኢንተርኔት ሲኖርዎ በራሱ ይላካል። መሸጥዎን ይቀጥሉ።",
+    "moreWays": "ባንክ / ሌላ",
+    "moreWaysSubtitle": "ባንኮች፣ የሞባይል ገንዘብና ሌሎችም",
+    "searchBank": "ባንክ ወይም ዋሌት ይፈልጉ...",
+    "noBankMatch": "በዚያ ስም ምንም አልተገኘም።"
   },
   "Shift": {
     "orders": "ትዕዛዞች",

@@ -452,6 +452,36 @@ async function main() {
   check("...and never twice", secondClaim.length === 0);
   await sql`DELETE FROM digest_runs WHERE business_date = ${probeDay}::date`;
 
+  /* ---- offline: flight payloads must never be served as pages ---- */
+  console.log("\nOffline safety:");
+
+  // A client-side <Link> navigation sends this, and the body is React flight
+  // data. Caching it as a page and later serving it for a navigation is what
+  // painted `0:{"b":...}` on screen, so the shapes must stay distinguishable.
+  const flight = await fetch(`${BASE}/staff/shift?_rsc=probe`, {
+    headers: { cookie: staff.cookie, RSC: "1" },
+  });
+  const flightType = flight.headers.get("content-type") ?? "";
+  check("a flight request is not text/html", !flightType.includes("text/html"), flightType);
+  check("...it is text/x-component", flightType.includes("text/x-component"), flightType);
+
+  const docNav = await get("/staff/shift", staff.cookie);
+  check(
+    "a document navigation IS text/html",
+    (docNav.headers.get("content-type") ?? "").includes("text/html"),
+    docNav.headers.get("content-type") ?? "",
+  );
+
+  const swSource = readFileSync("public/sw.js", "utf8");
+  check("the worker detects flight requests", swSource.includes("isFlightRequest"));
+  check("...and only caches or serves HTML for navigations", swSource.includes("isHtmlResponse"));
+  check(
+    "...and no longer serves a different page as a fallback",
+    !swSource.includes("Any cached page under the same first path segment"),
+    "the sibling heuristic is back - that is the bug that rendered flight data",
+  );
+  check("the cache version was bumped past the poisoned one", !swSource.includes('VERSION = "v1"'));
+
   /* ---- telegram bot ---- */
   console.log("\nTelegram bot:");
 
