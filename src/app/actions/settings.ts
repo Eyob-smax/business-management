@@ -12,6 +12,7 @@ import { activityLog } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { saveSettingsGroup } from "@/lib/settings";
 import { parseMoneyToCents } from "@/lib/money";
+import { sendDailyDigest } from "@/lib/digest/send";
 import { fail, ok, toActionError, type ActionResult } from "./_result";
 
 const businessSchema = z.object({
@@ -109,6 +110,119 @@ export async function saveNotifySettings(
 
     revalidatePath("/admin/settings");
     return ok("Notification settings saved.");
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+/* ------------------------------------------------------------ daily digest */
+
+const listField = (raw: FormDataEntryValue | null, max = 20) =>
+  String(raw ?? "")
+    .split(/[\n,;]+/)
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .slice(0, max);
+
+const digestSchema = z.object({
+  enabled: z.boolean(),
+  hourLocal: z.coerce.number().int().min(0).max(23),
+  topDishes: z.coerce.number().int().min(1).max(10),
+  skipEmptyDays: z.boolean(),
+  channels: z.object({
+    push: z.boolean(),
+    telegram: z.boolean(),
+    email: z.boolean(),
+    sms: z.boolean(),
+  }),
+  telegramChatIds: z.array(z.string().regex(/^-?\d+$/, "Chat IDs are numbers.")),
+  emails: z.array(z.string().email("That is not a valid email address.")),
+  phones: z.array(
+    z.string().regex(/^\+\d{7,15}$/, "Phone numbers need the country code, e.g. +251911234567."),
+  ),
+});
+
+export async function saveDigestSettings(
+  _prev: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin();
+
+    const parsed = digestSchema.safeParse({
+      enabled: bool(formData.get("enabled")),
+      hourLocal: formData.get("hourLocal") ?? 21,
+      topDishes: formData.get("topDishes") ?? 3,
+      skipEmptyDays: bool(formData.get("skipEmptyDays")),
+      channels: {
+        push: bool(formData.get("chPush")),
+        telegram: bool(formData.get("chTelegram")),
+        email: bool(formData.get("chEmail")),
+        sms: bool(formData.get("chSms")),
+      },
+      telegramChatIds: listField(formData.get("telegramChatIds")),
+      emails: listField(formData.get("emails")),
+      phones: listField(formData.get("phones")),
+    });
+
+    if (!parsed.success) {
+      return fail(parsed.error.issues[0]?.message ?? "Please check the form.");
+    }
+
+    // A channel switched on with nobody to send to would fail silently at 9pm.
+    const v = parsed.data;
+    if (v.channels.telegram && v.telegramChatIds.length === 0) {
+      return fail("Add at least one Telegram chat ID, or switch Telegram off.");
+    }
+    if (v.channels.email && v.emails.length === 0) {
+      return fail("Add at least one email address, or switch email off.");
+    }
+    if (v.channels.sms && v.phones.length === 0) {
+      return fail("Add at least one phone number, or switch SMS off.");
+    }
+
+    await saveSettingsGroup("digest", v);
+
+    await db.insert(activityLog).values({
+      actorId: admin.id,
+      action: "settings-digest",
+      detail: { enabled: v.enabled, hourLocal: v.hourLocal, channels: v.channels },
+    });
+
+    revalidatePath("/admin/settings");
+    return ok("Daily summary settings saved.");
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+/** "Send it to me now" - bypasses the once-a-day guard and the empty-day rule. */
+export async function sendDigestNow(): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const outcome = await sendDailyDigest({ force: true });
+
+    if (outcome.skipped) return fail(outcome.reason ?? "Nothing was sent.");
+    if (outcome.results.length === 0) {
+      return fail("No delivery channels are switched on.");
+    }
+
+    const sent = outcome.results.reduce((t, r) => t + r.sent, 0);
+    const problems = outcome.results
+      .filter((r) => r.error)
+      .map((r) => `${r.channel}: ${r.error}`)
+      .join(" | ");
+
+    if (sent === 0) {
+      return fail(problems || "No channel accepted the message.");
+    }
+
+    revalidatePath("/admin/settings");
+    return ok(
+      problems
+        ? `Sent to ${sent} recipient(s). Some channels had trouble - ${problems}`
+        : `Sent to ${sent} recipient(s).`,
+    );
   } catch (err) {
     return toActionError(err);
   }

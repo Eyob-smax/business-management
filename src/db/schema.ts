@@ -312,6 +312,37 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * One row per digest actually delivered, keyed by (business day, channel).
+ *
+ * The unique index is the whole point: a cron that fires twice, a retry after
+ * a timeout, or somebody pressing "send now" cannot produce two 9pm messages
+ * saying the same thing. It doubles as the delivery history shown in Settings.
+ */
+export const digestRuns = pgTable(
+  "digest_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    module: moduleEnum("module").notNull().default("restaurant"),
+    /** The trading day the digest is about. */
+    businessDate: date("business_date").notNull(),
+    /** "telegram" | "email" | "sms" | "push" */
+    channel: text("channel").notNull(),
+    /** How many recipients the channel accepted. */
+    sentCount: integer("sent_count").notNull().default(0),
+    failedCount: integer("failed_count").notNull().default(0),
+    /** Null on success; the provider's complaint otherwise. */
+    error: text("error"),
+    /** The exact text delivered, so "what did it say?" is answerable. */
+    preview: text("preview"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("digest_runs_day_channel_uq").on(t.module, t.businessDate, t.channel),
+    index("digest_runs_created_idx").on(t.createdAt),
+  ],
+);
+
 export const activityLog = pgTable(
   "activity_log",
   {

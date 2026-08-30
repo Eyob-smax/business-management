@@ -62,11 +62,52 @@ const DEFAULTS = {
     onOfflineBatch: true,
     onVoid: true,
   } satisfies NotifySettings,
+  digest: {
+    enabled: true,
+    hourLocal: 21,
+    // Push costs nothing and needs no provider, so it is the only one on by
+    // default; the rest switch themselves on once their env vars exist.
+    channels: { push: true, telegram: false, email: false, sms: false },
+    telegramChatIds: [],
+    emails: [],
+    phones: [],
+    topDishes: 3,
+    skipEmptyDays: true,
+  } satisfies DigestSettings,
+};
+
+/**
+ * The nightly summary.
+ *
+ * Provider credentials live in environment variables; only WHO receives it and
+ * WHAT it contains live here, because those are the things an admin changes
+ * from their phone.
+ */
+export type DigestSettings = {
+  enabled: boolean;
+  /** Local hour (business timezone) the summary is meant to go out. */
+  hourLocal: number;
+  channels: {
+    push: boolean;
+    telegram: boolean;
+    email: boolean;
+    sms: boolean;
+  };
+  /** Telegram chat ids - a person or a group the bot has been added to. */
+  telegramChatIds: string[];
+  emails: string[];
+  /** E.164, e.g. +251911234567. */
+  phones: string[];
+  /** How many dishes to name in the summary. */
+  topDishes: number;
+  /** Skip sending on days with no sales at all. */
+  skipEmptyDays: boolean;
 };
 
 export type SettingsBundle = {
   business: BusinessSettings;
   notify: NotifySettings;
+  digest: DigestSettings;
 };
 
 /**
@@ -81,16 +122,28 @@ export const getSettings = cache(async function getSettings(): Promise<SettingsB
     rows = await db
       .select({ key: settings.key, value: settings.value })
       .from(settings)
-      .where(inArray(settings.key, ["business", "notify"]));
+      .where(inArray(settings.key, ["business", "notify", "digest"]));
   } catch {
     // Table not migrated yet - fall back to defaults rather than 500.
-    return { business: { ...DEFAULTS.business }, notify: { ...DEFAULTS.notify } };
+    return {
+      business: { ...DEFAULTS.business },
+      notify: { ...DEFAULTS.notify },
+      digest: { ...DEFAULTS.digest },
+    };
   }
 
   const map = new Map(rows.map((r) => [r.key, r.value as Record<string, unknown>]));
+  const storedDigest = (map.get("digest") ?? {}) as Partial<DigestSettings>;
+
   return {
     business: { ...DEFAULTS.business, ...(map.get("business") ?? {}) },
     notify: { ...DEFAULTS.notify, ...(map.get("notify") ?? {}) },
+    digest: {
+      ...DEFAULTS.digest,
+      ...storedDigest,
+      // Nested object, so a shallow merge would drop channels added later.
+      channels: { ...DEFAULTS.digest.channels, ...(storedDigest.channels ?? {}) },
+    },
   };
 });
 

@@ -52,6 +52,10 @@ npm run seed -- --wipe-demo    # removes only the sample data
 | `SEED_MANAGER_NAME` / `SEED_MANAGER_CODE` | Second admin. Blank name to skip. |
 | `SEED_STAFF_NAME` / `SEED_STAFF_CODE` | First staff account. Blank name to skip. |
 | `RESTAURANT_NAME` / `SHOP_NAME` | Starting business names, editable in Settings. |
+| `CRON_SECRET` | Guards `/api/cron/daily-digest`. Unset = the endpoint is disabled. |
+| `TELEGRAM_BOT_TOKEN` | From @BotFather. The free nightly-summary channel. |
+| `RESEND_API_KEY` / `DIGEST_EMAIL_FROM` | Optional email delivery. |
+| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` | Optional SMS. Not free — see The nightly summary. |
 
 `src/db/index.ts` throws if it is ever loaded in a browser, and every module that
 reads the database imports `server-only`, so a mistake fails the build instead of
@@ -147,6 +151,66 @@ are kept (`staff_id` is `ON DELETE SET NULL`) but the named orders lose their
 name, and the confirm dialog states how many. **No access** is the better choice
 almost every time, and the app says so.
 
+## The nightly summary
+
+Every night the app sends the day's numbers — revenue, cost, profit, margin,
+orders, the best-selling dishes, the busiest hour, who was working, and any
+problems staff flagged that are still open.
+
+### Which channel to use
+
+| Channel | Cost | Verdict |
+| --- | --- | --- |
+| **Phone notification** | Free | On by default. Goes to admins who enabled notifications. No setup. |
+| **Telegram** | **Free, unlimited, no card** | **Use this one.** Widely used in Ethiopia, rich formatting, instant. |
+| **Email** (Resend) | Free to 3,000/month | Good if you want a searchable written record. |
+| **SMS** (Twilio) | **Not free** | Last resort — see below. |
+
+**On "free SMS": there isn't one for Ethiopian numbers.** Every provider —
+Twilio, BulkSMS, EasySendSMS, SMSEthiopia — is signup credit and then
+per-message billing, because Ethio Telecom charges for termination. Twilio's
+~$15 credit works out to roughly 250 messages at their Ethiopia rate, so one
+nightly recipient runs free for about eight months and then costs around 6 US
+cents a night. Trial accounts also only reach pre-verified numbers and prefix
+every message. The SMS channel is implemented and works if you want it; the app
+just refuses to pretend it is free. Telegram does the same job for nothing.
+
+### Setting up Telegram (about 3 minutes)
+
+1. In Telegram, message **@BotFather** → `/newbot` → pick a name. Copy the token
+   into `TELEGRAM_BOT_TOKEN`.
+2. Each person who should get the summary sends the bot any message once (or add
+   the bot to a family group and post once).
+3. Visit `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy each
+   `chat.id`. A negative id is a group.
+4. Paste the ids into **Settings → Nightly summary → Telegram**, switch it on,
+   and press **Send now** to check.
+
+### Scheduling
+
+`vercel.json` runs `/api/cron/daily-digest` hourly. The endpoint checks the
+local clock itself and only sends once the configured hour has arrived, and the
+`(day, channel)` unique index means the remaining hourly calls are no-ops. That
+combination is deliberate: it means the send hour is changed in Settings rather
+than by editing a cron expression, and a missed run self-heals on the next hour
+instead of silently skipping the day.
+
+If your plan only allows one cron a day, change the schedule to match your send
+hour in UTC (21:00 in Addis Ababa is `0 18 * * *`). Any external scheduler works
+too — [cron-job.org](https://cron-job.org) is free and allows any interval:
+
+```
+https://your-app.vercel.app/api/cron/daily-digest?key=<CRON_SECRET>
+```
+
+The endpoint requires `CRON_SECRET` (Bearer header or `?key=`). Without that
+variable set it refuses everything rather than defaulting to open — an
+unguarded trigger would let a stranger spend your SMS credit. An admin's
+browser session is deliberately *not* sufficient either.
+
+Useful query parameters: `?force=1` ignores the hour check, `?resend=1` ignores
+the once-a-day guard, `?date=YYYY-MM-DD` backfills a specific day.
+
 ## Money: how profit is worked out
 
 Two independent sources of cost exist, because the owners asked for both.
@@ -224,7 +288,7 @@ emoji correctly.
 | `npm run seed -- --reset-codes` | Apply the codes now in `.env.local` to existing accounts |
 | `npm run reset-admin -- <name>` | New sign-in code for somebody who forgot theirs |
 | `npm run reset-admin -- --list` | Who has an account |
-| `npm run smoke` | Smoke test against a running server (57 checks) |
+| `npm run smoke` | Smoke test against a running server (65 checks) |
 | `npm run icons` | Regenerate the PWA icon set |
 | `npm run lint` | ESLint |
 
@@ -235,6 +299,10 @@ off every screen; the held records go through once access returns), the sync
 contract (replay is a duplicate, a client-supplied total is ignored, a malformed
 batch is refused), and that every page renders. It cleans up every row it
 creates and always hands access back.
+
+Run it against a **production** build (`npm run build && npm start`), not a dev
+server started over the same `.next` directory — mixing the two corrupts the
+build output and every page 500s in a way that looks like an app bug.
 
 ---
 
@@ -286,6 +354,8 @@ src/
     sync-server.ts  the batch ingest and its four verdicts
     offline/        IndexedDB, outbox, sync engine (client)
     access.ts       the three access levels, as pure policy
+    digest/         nightly summary: build.ts renders it, channels.ts delivers
+                    it, send.ts claims (day, channel) so it goes out once
     auth.ts password.ts settings.ts expenses.ts notes.ts menu.ts money.ts dates.ts
 public/
   sw.js             service worker: offline shell, push, background sync

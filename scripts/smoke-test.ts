@@ -376,6 +376,60 @@ async function main() {
   check("CSV has all four sections",
     ["SUMMARY", "DAILY TOTALS", "ORDERS", "BY DISH"].every((s) => csv.body.includes(s)));
 
+  /* ---- nightly summary ---- */
+  console.log("\nNightly summary:");
+
+  const cronSecret = process.env.CRON_SECRET ?? "";
+  check("CRON_SECRET is configured", cronSecret.length > 10);
+
+  const noKey = await get("/api/cron/daily-digest");
+  check("cron endpoint refuses a request with no key", noKey.status === 401,
+    `got ${noKey.status}`);
+
+  const wrongKey = await get("/api/cron/daily-digest?key=definitely-not-the-secret");
+  check("cron endpoint refuses a wrong key", wrongKey.status === 401,
+    `got ${wrongKey.status}`);
+
+  // A signed-in admin session must NOT be enough - this endpoint is for the
+  // scheduler only, so an admin's browser cannot trigger sends by accident.
+  const adminNoKey = await get("/api/cron/daily-digest", admin.cookie);
+  check("an admin cookie alone does not trigger the cron", adminNoKey.status === 401,
+    `got ${adminNoKey.status}`);
+
+  const withKey = await get(`/api/cron/daily-digest?key=${encodeURIComponent(cronSecret)}`);
+  check("cron endpoint accepts the right key", withKey.status === 200,
+    `got ${withKey.status}`);
+
+  const cronBody = JSON.parse(withKey.body || "{}") as {
+    skipped?: boolean;
+    reason?: string;
+    results?: { channel: string; sent: number }[];
+    businessDate?: string;
+  };
+  check(
+    "...and answers with either a send or a documented reason for skipping",
+    cronBody.skipped === true ? Boolean(cronBody.reason) : Array.isArray(cronBody.results),
+    JSON.stringify(cronBody).slice(0, 200),
+  );
+
+  // The guarantee that matters: one (day, channel) can only ever be claimed
+  // once, so a scheduler firing hourly cannot send twelve identical messages.
+  const probeDay = "1999-01-02";
+  await sql`DELETE FROM digest_runs WHERE business_date = ${probeDay}::date`;
+  const firstClaim = (await sql`
+    INSERT INTO digest_runs (module, business_date, channel)
+    VALUES ('restaurant', ${probeDay}::date, 'telegram')
+    ON CONFLICT DO NOTHING RETURNING id
+  `) as unknown[];
+  const secondClaim = (await sql`
+    INSERT INTO digest_runs (module, business_date, channel)
+    VALUES ('restaurant', ${probeDay}::date, 'telegram')
+    ON CONFLICT DO NOTHING RETURNING id
+  `) as unknown[];
+  check("a day+channel can be claimed once", firstClaim.length === 1);
+  check("...and never twice", secondClaim.length === 0);
+  await sql`DELETE FROM digest_runs WHERE business_date = ${probeDay}::date`;
+
   const manifest = await get("/manifest.webmanifest");
   const manifestJson = JSON.parse(manifest.body) as { icons: unknown[]; display: string };
   check("manifest is served", manifest.status === 200 && manifestJson.display === "standalone");
