@@ -32,7 +32,11 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   const code = String(formData.get("code") ?? "");
 
   if (!name.trim()) return { ok: false, error: "Enter your name." };
-  if (!/^\d{4,10}$/.test(code)) return { ok: false, error: "Enter your 6-digit code." };
+  // Staff sign in with a 6-digit code, admins with a password (letters and
+  // numbers), and both arrive in the same "code" field. Only the shape that
+  // fits neither is turned away here; verifyPassword decides the rest.
+  if (!code) return { ok: false, error: "Enter your code or password." };
+  if (code.length > 200) return { ok: false, error: GENERIC };
 
   const [user] = await db
     .select()
